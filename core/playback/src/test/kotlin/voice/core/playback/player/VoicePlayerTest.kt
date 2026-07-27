@@ -64,6 +64,7 @@ class VoicePlayerTest {
 
   private val seekTimeStore = MemoryDataStore(2)
   private val autoRewindAmountStore = MemoryDataStore(2)
+  private val defaultPlaybackSpeedStore = MemoryDataStore(1F)
 
   private val internalPlayer = TestExoPlayerBuilder(ApplicationProvider.getApplicationContext())
     .setMediaSourceFactory(
@@ -106,6 +107,7 @@ class VoicePlayerTest {
     },
     seekTimeStore = seekTimeStore,
     autoRewindAmountStore = autoRewindAmountStore,
+    defaultPlaybackSpeedStore = defaultPlaybackSpeedStore,
     scope = scope,
     mediaItemProvider = mediaItemProvider,
     volumeGain = mockk(relaxed = true),
@@ -283,6 +285,38 @@ class VoicePlayerTest {
     player.seekTo(1, 1_000)
     player.forceSeekToPrevious()
     player.shouldHavePosition(0, 0)
+  }
+
+  @Test
+  fun `setBook applies default playback speed for never started books`() = scope.runTest {
+    defaultPlaybackSpeedStore.updateData { 1.5F }
+    setMediaItems(
+      listOf(
+        chapter(ChapterMark(startMs = 0, endMs = 20_000, name = null)),
+      ),
+    )
+
+    player.prepare()
+    awaitReady()
+
+    assertEquals(expected = 1.5F, actual = internalPlayer.playbackParameters.speed)
+  }
+
+  @Test
+  fun `setBook keeps explicit playback speed`() = scope.runTest {
+    currentBook = book(
+      chapters = listOf(chapter(ChapterMark(startMs = 0, endMs = 20_000, name = null))),
+      id = bookId,
+    ).update {
+      it.copy(playbackSpeed = 2F)
+    }
+    player.setMediaItem(mediaItemProvider.mediaItem(currentBook, hideCoverFromSystem = false))
+    runCurrent()
+
+    player.prepare()
+    awaitReady()
+
+    assertEquals(expected = 2F, actual = internalPlayer.playbackParameters.speed)
   }
 
   @Test

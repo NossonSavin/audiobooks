@@ -200,6 +200,27 @@ class BookTest {
     assertEquals(expected = secondChapter.duration, actual = updated.content.positionInChapter)
   }
 
+  @Test
+  fun effectivePlaybackSpeedUsesDefaultForNeverStartedBooks() {
+    val content = book(lastPlayedAtMillis = 0).content
+
+    assertEquals(expected = 1.5F, actual = content.effectivePlaybackSpeed(defaultPlaybackSpeed = 1.5F))
+  }
+
+  @Test
+  fun effectivePlaybackSpeedKeepsExplicitSpeed() {
+    val content = book(lastPlayedAtMillis = 0).content.copy(playbackSpeed = 2F)
+
+    assertEquals(expected = 2F, actual = content.effectivePlaybackSpeed(defaultPlaybackSpeed = 1.5F))
+  }
+
+  @Test
+  fun effectivePlaybackSpeedKeepsOneForPreviouslyPlayedBooks() {
+    val content = book(lastPlayedAtMillis = 1).content
+
+    assertEquals(expected = 1F, actual = content.effectivePlaybackSpeed(defaultPlaybackSpeed = 1.5F))
+  }
+
   @Suppress("SameParameterValue")
   private fun bookPosition(
     chapters: List<Chapter>,

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -160,13 +161,13 @@ private fun CoverImage(
   AsyncImage(
     modifier = Modifier
       .padding(top = 8.dp, start = 8.dp, bottom = 8.dp)
-      .size(76.dp)
+      .width(56.dp)
       .sharedCoverElementModifier(bookId)
       .clip(RoundedCornerShape(topStart = startPadding, bottomStart = startPadding, topEnd = endPadding, bottomEnd = endPadding)),
     model = cover,
     placeholder = painterResource(id = UiR.drawable.album_art),
     error = painterResource(id = UiR.drawable.album_art),
-    contentScale = ContentScale.Crop,
+    contentScale = ContentScale.Fit,
     contentDescription = null,
   )
 }

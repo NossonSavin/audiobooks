@@ -17,6 +17,7 @@ import voice.core.data.BookId
 import voice.core.data.repo.BookRepository
 import voice.core.data.store.AutoRewindAmountStore
 import voice.core.data.store.CurrentBookStore
+import voice.core.data.store.DefaultPlaybackSpeedStore
 import voice.core.data.store.SeekTimeStore
 import voice.core.logging.api.Logger
 import voice.core.playback.misc.Decibel
@@ -44,6 +45,8 @@ class VoicePlayer(
   private val seekTimeStore: DataStore<Int>,
   @AutoRewindAmountStore
   private val autoRewindAmountStore: DataStore<Int>,
+  @DefaultPlaybackSpeedStore
+  private val defaultPlaybackSpeedStore: DataStore<Float>,
   private val mediaItemProvider: MediaItemProvider,
   private val scope: CoroutineScope,
   private val volumeGain: VolumeGain,
@@ -301,7 +304,8 @@ class VoicePlayer(
           repo.get(mediaId.id)
         }
         if (book != null) {
-          player.setPlaybackSpeed(book.content.playbackSpeed)
+          val defaultPlaybackSpeed = runBlocking { defaultPlaybackSpeedStore.data.first() }
+          val speed = book.content.effectivePlaybackSpeed(defaultPlaybackSpeed)
           setSkipSilenceEnabled(book.content.skipSilence)
           volumeGain.gain = Decibel(book.content.gain)
           val currentPlaybackItem = book.playbackItemForPosition(
@@ -314,6 +318,7 @@ class VoicePlayer(
             currentPlaybackItem.index,
             currentPlaybackItem.positionInMediaItem(book.content.positionInChapter),
           )
+          setPlaybackSpeed(speed)
         }
       } else {
         Logger.w("Unexpected mediaId=$mediaId")

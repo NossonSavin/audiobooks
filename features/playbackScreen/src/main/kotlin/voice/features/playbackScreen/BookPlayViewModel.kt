@@ -26,6 +26,7 @@ import voice.core.data.repo.BookRepository
 import voice.core.data.repo.BookmarkRepo
 import voice.core.data.sleeptimer.SleepTimerPreference
 import voice.core.data.store.CurrentBookStore
+import voice.core.data.store.DefaultPlaybackSpeedStore
 import voice.core.data.store.SleepTimerPreferenceStore
 import voice.core.featureflag.ExperimentalPlaybackPersistenceQualifier
 import voice.core.featureflag.FeatureFlag
@@ -60,6 +61,8 @@ class BookPlayViewModel(
   private val playStateManager: PlayStateManager,
   @CurrentBookStore
   private val currentBookStoreId: DataStore<BookId?>,
+  @DefaultPlaybackSpeedStore
+  private val defaultPlaybackSpeedStore: DataStore<Float>,
   private val navigator: Navigator,
   private val bookmarkRepository: BookmarkRepo,
   private val volumeGainFormatter: VolumeGainFormatter,
@@ -110,11 +113,14 @@ class BookPlayViewModel(
       playStateManager.playStateFlow
     }.collectAsState()
 
+    val defaultPlaybackSpeed by remember { defaultPlaybackSpeedStore.data }.collectAsState(initial = 1F)
+
     val book = if (livePlaybackState != null) {
       persistedBook.overlay(livePlaybackState)
     } else {
       persistedBook
     }
+    val playbackSpeed = book.content.effectivePlaybackSpeed(defaultPlaybackSpeed)
     val isPlaying = livePlaybackState?.isPlaying ?: (managerPlayState == PlayStateManager.PlayState.Playing)
 
     val currentMark = book.currentChapter.markForPosition(book.content.positionInChapter)
@@ -129,7 +135,7 @@ class BookPlayViewModel(
     val hasMoreThanOneChapter = book.chapters.sumOf { it.chapterMarks.count() } > 1
 
     val remainingAudioMs = (book.duration - book.position)
-    val remainingTimeAdjusted = (remainingAudioMs / book.content.playbackSpeed).toLong().milliseconds
+    val remainingTimeAdjusted = (remainingAudioMs / playbackSpeed).toLong().milliseconds
 
     return BookPlayViewState(
       sleepTimerState = sleepTime.toViewState(),
@@ -145,7 +151,7 @@ class BookPlayViewModel(
       bookTotalDuration = book.duration.milliseconds,
       bookTotalPlayedTime = book.position.milliseconds,
       bookProgress = book.position.toFloat() / book.duration.toFloat(),
-      playbackSpeed = book.content.playbackSpeed,
+      playbackSpeed = playbackSpeed,
     )
   }
 
@@ -309,8 +315,11 @@ class BookPlayViewModel(
 
   fun onPlaybackSpeedIconClick() {
     scope.launch {
-      val playbackSpeed = currentBook()?.content?.playbackSpeed ?: return@launch
-      dialogState.value = BookPlayDialogViewState.SpeedDialog(playbackSpeed)
+      val book = currentBook() ?: return@launch
+      val defaultPlaybackSpeed = defaultPlaybackSpeedStore.data.first()
+      dialogState.value = BookPlayDialogViewState.SpeedDialog(
+        book.content.effectivePlaybackSpeed(defaultPlaybackSpeed),
+      )
     }
   }
 

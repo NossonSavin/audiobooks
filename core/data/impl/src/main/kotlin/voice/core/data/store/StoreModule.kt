@@ -105,6 +105,17 @@ public interface StoreModule {
 
   @Provides
   @SingleIn(AppScope::class)
+  @DefaultPlaybackSpeedStore
+  private fun defaultPlaybackSpeed(factory: VoiceDataStoreFactory): DataStore<Float> {
+    return factory.create(
+      serializer = Float.serializer(),
+      defaultValue = 1F,
+      fileName = "defaultPlaybackSpeed",
+    )
+  }
+
+  @Provides
+  @SingleIn(AppScope::class)
   @SleepTimerPreferenceStore
   private fun sleepTimerPreference(factory: VoiceDataStoreFactory): DataStore<SleepTimerPreference> {
     return factory.create(

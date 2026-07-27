@@ -2,6 +2,8 @@ package voice.core.scanner
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Build
 import androidx.core.graphics.scale
 import dev.zacsweers.metro.Inject
@@ -33,7 +35,12 @@ internal constructor(
       // scale down if bitmap is too large
       val preferredSize = 1920
       val bitmapToSave = if (max(cover.width, cover.height) > preferredSize) {
-        cover.scale(preferredSize, preferredSize)
+        val aspectRatio = cover.width.toFloat() / cover.height.toFloat()
+        if (cover.width > cover.height) {
+          cover.scale(preferredSize, (preferredSize / aspectRatio).toInt())
+        } else {
+          cover.scale((preferredSize * aspectRatio).toInt(), preferredSize)
+        }
       } else {
         cover
       }
@@ -59,6 +66,32 @@ internal constructor(
     }
 
     setBookCover(newCover, bookId)
+  }
+
+  public suspend fun save(
+    bookId: BookId,
+    uri: Uri,
+  ) {
+    val bitmap = withContext(Dispatchers.IO) {
+      context.contentResolver.openInputStream(uri)?.use {
+        BitmapFactory.decodeStream(it)
+      }
+    }
+    if (bitmap != null) {
+      save(bookId, bitmap)
+    }
+  }
+
+  public suspend fun save(
+    bookId: BookId,
+    file: File,
+  ) {
+    val bitmap = withContext(Dispatchers.IO) {
+      BitmapFactory.decodeFile(file.absolutePath)
+    }
+    if (bitmap != null) {
+      save(bookId, bitmap)
+    }
   }
 
   internal suspend fun newBookCoverFile(): File {

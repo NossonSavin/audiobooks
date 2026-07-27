@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import voice.app.MainActivity
 import voice.core.data.BookId
 import voice.core.data.folders.AudiobookFolders
+import voice.core.data.repo.BookRepository
 import voice.core.data.store.CurrentBookStore
 import voice.core.data.store.OnboardingCompletedStore
 import voice.core.playback.PlayerController
@@ -20,6 +21,7 @@ class StartDestinationProvider(
   private val audiobookFolders: AudiobookFolders,
   @CurrentBookStore
   private val currentBookStore: DataStore<BookId?>,
+  private val bookRepository: BookRepository,
   private val playerController: PlayerController,
 ) {
 
@@ -44,6 +46,15 @@ class StartDestinationProvider(
         return listOf(Destination.BookOverview, Destination.Playback(bookId))
       }
     }
+
+    val lastBookId = runBlocking { currentBookStore.data.first() }
+    if (lastBookId != null) {
+      val bookExists = runBlocking { bookRepository.get(lastBookId) != null }
+      if (bookExists) {
+        return listOf(Destination.BookOverview, Destination.Playback(lastBookId))
+      }
+    }
+
     return listOf(Destination.BookOverview)
   }
 

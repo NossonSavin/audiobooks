@@ -37,6 +37,7 @@ class SettingsViewModelTest {
   private val themeColorSchemeStore = MemoryDataStore(ThemeColorScheme.VoiceBlue)
   private val autoRewindAmountStore = MemoryDataStore(10)
   private val seekTimeStore = MemoryDataStore(30)
+  private val defaultPlaybackSpeedStore = MemoryDataStore(1F)
   private val gridModeStore = MemoryDataStore(GridMode.GRID)
   private val sleepTimerPreferenceStore = MemoryDataStore(SleepTimerPreference.Default)
   private val analyticsConsentStore = MemoryDataStore(false)
@@ -63,6 +64,7 @@ class SettingsViewModelTest {
     themeColorSchemeStore = themeColorSchemeStore,
     autoRewindAmountStore = autoRewindAmountStore,
     seekTimeStore = seekTimeStore,
+    defaultPlaybackSpeedStore = defaultPlaybackSpeedStore,
     navigator = navigator,
     appInfoProvider = appInfoProvider,
     gridModeStore = gridModeStore,
@@ -237,6 +239,19 @@ class SettingsViewModelTest {
       awaitItem().let {
         assertEquals(expected = true, actual = it.kioskMode)
       }
+    }
+  }
+
+  @Test
+  fun `default playback speed updates view state`() = scope.runTest {
+    backgroundScope.launchMolecule(RecompositionMode.Immediate) {
+      viewModel.viewState()
+    }.test {
+      assertEquals(expected = 1F, actual = awaitItem().defaultPlaybackSpeed)
+
+      viewModel.setDefaultPlaybackSpeed(1.25F)
+
+      assertEquals(expected = 1.25F, actual = awaitItem().defaultPlaybackSpeed)
     }
   }
 }

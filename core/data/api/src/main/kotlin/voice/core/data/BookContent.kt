@@ -35,6 +35,12 @@ public data class BookContent(
 
   val coverUrl: String? get() = cover?.toURI()?.toString()
 
+  public fun effectivePlaybackSpeed(defaultPlaybackSpeed: Float): Float = when {
+    playbackSpeed != 1F -> playbackSpeed
+    lastPlayedAt == Instant.EPOCH -> defaultPlaybackSpeed
+    else -> playbackSpeed
+  }
+
   init {
     require(currentChapter in chapters && positionInChapter >= 0) {
       "invalid data in $this"

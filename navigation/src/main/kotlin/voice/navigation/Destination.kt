@@ -1,10 +1,8 @@
 package voice.navigation
 
 import android.content.Intent
-import android.net.Uri
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
-import voice.core.common.serialization.UriSerializer
 import voice.core.data.BookId
 
 sealed interface Destination {
@@ -25,16 +23,6 @@ sealed interface Destination {
   }
 
   data class Website(val url: String) : Destination
-
-  @Serializable
-  data class EditCover(
-    val bookId: BookId,
-    val cover:
-    @Serializable(with = UriSerializer::class)
-    Uri,
-  ) : Compose {
-    override val trackingName: String get() = "EditCover"
-  }
 
   data class Activity(val intent: Intent) : Destination
 

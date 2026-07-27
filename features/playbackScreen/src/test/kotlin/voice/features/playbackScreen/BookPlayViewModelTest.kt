@@ -76,6 +76,7 @@ class BookPlayViewModelTest {
     every { playStateFlow } returns MutableStateFlow(PlayStateManager.PlayState.Paused)
   }
   private val currentBookStoreId = MemoryDataStore<BookId?>(null)
+  private val defaultPlaybackSpeedStore = MemoryDataStore(1.25F)
   private val currentBookResolver = mockk<CurrentBookResolver> {
     coEvery { book(book.id) } returns book
   }
@@ -91,6 +92,7 @@ class BookPlayViewModelTest {
     sleepTimer = sleepTimer,
     playStateManager = playStateManager,
     currentBookStoreId = currentBookStoreId,
+    defaultPlaybackSpeedStore = defaultPlaybackSpeedStore,
     navigator = mockk(),
     bookmarkRepository = mockk {
       coEvery { addBookmarkAtBookPosition(book, any(), any()) } returns Bookmark(
@@ -241,6 +243,15 @@ class BookPlayViewModelTest {
   }
 
   @Test
+  fun `viewState uses default playback speed for never started books`() = scope.runTest {
+    backgroundScope.launchMolecule(RecompositionMode.Immediate) {
+      viewModel.viewState()
+    }.test {
+      assertEquals(expected = 1.25F, actual = awaitItem()!!.playbackSpeed)
+    }
+  }
+
+  @Test
   fun `overlay prefers live controller position`() {
     val persistedBook = book()
     val overlaidBook = persistedBook.overlay(
@@ -343,6 +354,7 @@ class BookPlayViewModelTest {
         every { playState } returns playStateFlow.value
       },
       currentBookStoreId = MemoryDataStore(null),
+      defaultPlaybackSpeedStore = defaultPlaybackSpeedStore,
       navigator = mockk(),
       bookmarkRepository = mockk(),
       volumeGainFormatter = mockk(),

@@ -7,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.core.net.toUri
 import androidx.paging.LoadState
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
@@ -21,10 +20,10 @@ import dev.zacsweers.metro.ContributesTo
 import kotlinx.coroutines.flow.Flow
 import voice.core.data.BookId
 import voice.core.data.repo.BookRepository
+import voice.core.scanner.CoverSaver
 import voice.features.cover.api.CoverApi
 import voice.features.cover.api.ImageSearchPagingSource
 import voice.features.cover.api.SearchResponse
-import voice.navigation.Destination
 import voice.navigation.Navigator
 import voice.core.strings.R as StringsR
 
@@ -35,6 +34,7 @@ class SelectCoverFromInternetViewModel(
   private val navigator: Navigator,
   private val context: Context,
   private val coverDownloader: CoverDownloader,
+  private val coverSaver: CoverSaver,
   @Assisted private val bookId: BookId,
 ) {
 
@@ -82,8 +82,8 @@ class SelectCoverFromInternetViewModel(
             val downloaded = coverDownloader.download(event.cover.image)
               ?: coverDownloader.download(event.cover.thumbnail)
             if (downloaded != null) {
+              coverSaver.save(bookId, downloaded)
               navigator.goBack()
-              navigator.goTo(Destination.EditCover(bookId, downloaded.toUri()))
             }
           }
           is Events.QueryChange -> {

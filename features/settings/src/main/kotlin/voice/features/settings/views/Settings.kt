@@ -160,6 +160,12 @@ private fun Settings(
       }
 
       item {
+        DefaultPlaybackSpeedRow(viewState.defaultPlaybackSpeed) {
+          listener.onDefaultPlaybackSpeedRowClick()
+        }
+      }
+
+      item {
         ListItem(
           modifier = Modifier.clickable { listener.toggleHideCoverFromSystem() },
           leadingContent = {
@@ -384,6 +390,13 @@ private fun Dialog(
       SeekAmountDialog(
         currentSeconds = viewState.seekTimeInSeconds,
         onSecondsConfirm = listener::seekAmountChanged,
+        onDismiss = listener::dismissDialog,
+      )
+    }
+    SettingsViewState.Dialog.DefaultPlaybackSpeed -> {
+      PlaybackSpeedDialog(
+        currentSpeed = viewState.defaultPlaybackSpeed,
+        onSpeedConfirm = listener::setDefaultPlaybackSpeed,
         onDismiss = listener::dismissDialog,
       )
     }

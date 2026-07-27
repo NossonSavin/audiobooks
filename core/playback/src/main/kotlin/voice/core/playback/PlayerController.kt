@@ -97,6 +97,10 @@ class PlayerController(
     }
   }
 
+  fun pause() = executeAfterPrepare { controller ->
+    controller.pause()
+  }
+
   fun skipSilence(skip: Boolean) = executeAfterPrepare { controller ->
     controller.sendCustomCommand(CustomCommand.SetSkipSilence(skip))
   }

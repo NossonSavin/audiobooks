@@ -22,6 +22,7 @@ import voice.core.data.ThemeMode
 import voice.core.data.sleeptimer.SleepTimerPreference
 import voice.core.data.store.AnalyticsConsentStore
 import voice.core.data.store.AutoRewindAmountStore
+import voice.core.data.store.DefaultPlaybackSpeedStore
 import voice.core.data.store.DeveloperMenuUnlockedStore
 import voice.core.data.store.GridModeStore
 import voice.core.data.store.HideCoverFromSystemStore
@@ -48,6 +49,8 @@ class SettingsViewModel(
   private val autoRewindAmountStore: DataStore<Int>,
   @SeekTimeStore
   private val seekTimeStore: DataStore<Int>,
+  @DefaultPlaybackSpeedStore
+  private val defaultPlaybackSpeedStore: DataStore<Float>,
   private val navigator: Navigator,
   private val appInfoProvider: AppInfoProvider,
   @GridModeStore
@@ -80,6 +83,7 @@ class SettingsViewModel(
     val themeColorScheme by remember { themeColorSchemeStore.data }.collectAsState(initial = ThemeColorScheme.VoiceBlue)
     val autoRewindAmount by remember { autoRewindAmountStore.data }.collectAsState(initial = 0)
     val seekTime by remember { seekTimeStore.data }.collectAsState(initial = 0)
+    val defaultPlaybackSpeed by remember { defaultPlaybackSpeedStore.data }.collectAsState(initial = 1F)
     val gridMode by remember { gridModeStore.data }.collectAsState(initial = GridMode.GRID)
     val autoSleepTimer by remember { sleepTimerPreferenceStore.data }.collectAsState(
       initial = SleepTimerPreference.Default,
@@ -99,6 +103,7 @@ class SettingsViewModel(
       showThemeColorSchemePref = showThemeColorSchemePref,
       seekTimeInSeconds = seekTime,
       autoRewindInSeconds = autoRewindAmount,
+      defaultPlaybackSpeed = defaultPlaybackSpeed,
       dialog = dialog.value,
       appVersion = appInfoProvider.versionName,
       useGrid = when (gridMode) {
@@ -170,6 +175,16 @@ class SettingsViewModel(
 
   override fun onSeekAmountRowClick() {
     dialog.value = SettingsViewState.Dialog.SeekTime
+  }
+
+  override fun setDefaultPlaybackSpeed(speed: Float) {
+    mainScope.launch {
+      defaultPlaybackSpeedStore.updateData { speed }
+    }
+  }
+
+  override fun onDefaultPlaybackSpeedRowClick() {
+    dialog.value = SettingsViewState.Dialog.DefaultPlaybackSpeed
   }
 
   override fun autoRewindAmountChang(seconds: Int) {

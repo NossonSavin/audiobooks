@@ -240,6 +240,8 @@
     <string name="settings.playback.auto_rewind.title">Auto rewind</string>
     <!-- Title for the setting that controls skip-forward and rewind duration. -->
     <string name="settings.playback.seek_time.title">Skip amount</string>
+    <!-- Title for the setting that selects the default playback speed for new playback sessions. -->
+    <string name="settings.playback.default_speed.title">Default playback speed</string>
     <!-- Summary for the setting that hides the book cover from system surfaces. -->
     <string name="settings.playback.hide_cover_from_system.summary">Hide the book cover from notifications, lock screen and widgets</string>
     <!-- Title for the setting that hides the book cover from system surfaces. -->
