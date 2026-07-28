@@ -47,7 +47,7 @@ internal fun ChapterRow(
       modifier = Modifier
         .weight(1F)
         .clickable(onClick = onCurrentChapterClick)
-        .padding(vertical = 16.dp),
+        .padding(vertical = 10.dp),
       horizontalArrangement = Arrangement.Center,
       verticalAlignment = Alignment.CenterVertically,
     ) {

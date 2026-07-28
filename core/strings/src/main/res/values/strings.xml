@@ -182,7 +182,7 @@
     <!-- Title and content description for playback-speed controls. -->
     <string name="playback.speed.title">Playback speed</string>
     <!-- Total progress of the book: read time, total time, percentage and remaining time. -->
-    <string name="playback_book_status">Read %1$s of %2$s\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0%3$d%%\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Left %4$s</string>
+    <string name="playback_book_status">Read %1$s of %2$s  %3$d%%  Left %4$s</string>
     <!-- Negative button for cancelling feedback. -->
     <string name="review.feedback.action.cancel" tools:ignore="UnusedResources">Cancel</string>
     <!-- Positive button for sending feedback. -->

@@ -49,7 +49,8 @@ internal fun BookPlayContent(
         sleepTimerState = viewState.sleepTimerState,
         modifier = Modifier
           .fillMaxHeight()
-          .weight(1F),
+          .weight(1F)
+          .padding(bottom = 16.dp),
       )
       Column(
         modifier = Modifier
@@ -70,7 +71,7 @@ internal fun BookPlayContent(
             onCurrentChapterClick = onCurrentChapterClick,
           )
         }
-        Spacer(modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.size(8.dp))
         SliderRow(
           duration = viewState.duration,
           playedTime = viewState.playedTime,
@@ -111,7 +112,7 @@ internal fun BookPlayContent(
         horizontalAlignment = Alignment.CenterHorizontally,
       ) {
         viewState.chapterName?.let { chapterName ->
-          Spacer(modifier = Modifier.size(16.dp))
+          Spacer(modifier = Modifier.size(10.dp))
           ChapterRow(
             chapterName = chapterName,
             nextPreviousVisible = viewState.showPreviousNextButtons,
@@ -120,7 +121,7 @@ internal fun BookPlayContent(
             onCurrentChapterClick = onCurrentChapterClick,
           )
         }
-        Spacer(modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.size(10.dp))
         SliderRow(
           duration = viewState.duration,
           playedTime = viewState.playedTime,
