@@ -28,6 +28,7 @@ import kotlin.time.Duration
 internal fun SliderRow(
   duration: Duration,
   playedTime: Duration,
+  playbackSpeed: Float,
   bookRemainingTime: Duration?,
   bookTotalDuration: Duration?,
   bookTotalPlayedTime: Duration?,
@@ -46,13 +47,14 @@ internal fun SliderRow(
       var localValue by remember { mutableFloatStateOf(0F) }
       val interactionSource = remember { MutableInteractionSource() }
       val dragging by interactionSource.collectIsDraggedAsState()
+      val currentPlayedAudioMs = if (dragging) {
+        (duration * localValue.toDouble()).inWholeMilliseconds
+      } else {
+        playedTime.inWholeMilliseconds
+      }
       Text(
         text = formatTime(
-          timeMs = if (dragging) {
-            (duration * localValue.toDouble()).inWholeMilliseconds
-          } else {
-            playedTime.inWholeMilliseconds
-          },
+          timeMs = currentPlayedAudioMs,
           durationMs = duration.inWholeMilliseconds,
         ),
       )
@@ -74,11 +76,24 @@ internal fun SliderRow(
           onSeek(duration * localValue.toDouble())
         },
       )
+      val remainingAudioMs = (duration.inWholeMilliseconds - currentPlayedAudioMs).coerceAtLeast(0L)
+      val remainingMsAdjusted = if (playbackSpeed > 0F) {
+        (remainingAudioMs / playbackSpeed).toLong()
+      } else {
+        remainingAudioMs
+      }
+      val totalDurationAdjusted = if (playbackSpeed > 0F) {
+        (duration.inWholeMilliseconds / playbackSpeed).toLong()
+      } else {
+        duration.inWholeMilliseconds
+      }
       Text(
-        text = formatTime(
-          timeMs = duration.inWholeMilliseconds,
-          durationMs = duration.inWholeMilliseconds,
-        ),
+        text = "-${
+          formatTime(
+            timeMs = remainingMsAdjusted,
+            durationMs = totalDurationAdjusted,
+          )
+        }",
       )
     }
 

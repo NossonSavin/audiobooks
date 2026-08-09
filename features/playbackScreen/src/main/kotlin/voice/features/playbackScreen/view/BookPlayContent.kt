@@ -75,6 +75,7 @@ internal fun BookPlayContent(
         SliderRow(
           duration = viewState.duration,
           playedTime = viewState.playedTime,
+          playbackSpeed = viewState.playbackSpeed,
           bookRemainingTime = viewState.bookRemainingTime,
           bookTotalDuration = viewState.bookTotalDuration,
           bookTotalPlayedTime = viewState.bookTotalPlayedTime,
@@ -125,6 +126,7 @@ internal fun BookPlayContent(
         SliderRow(
           duration = viewState.duration,
           playedTime = viewState.playedTime,
+          playbackSpeed = viewState.playbackSpeed,
           bookRemainingTime = viewState.bookRemainingTime,
           bookTotalDuration = viewState.bookTotalDuration,
           bookTotalPlayedTime = viewState.bookTotalPlayedTime,
