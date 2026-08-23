@@ -222,6 +222,13 @@ public interface StoreModule {
   private fun hideCoverFromSystem(factory: VoiceDataStoreFactory): DataStore<Boolean> {
     return factory.boolean("hideCoverFromSystem", defaultValue = false)
   }
+
+  @Provides
+  @SingleIn(AppScope::class)
+  @ResumeOtherMediaStore
+  private fun resumeOtherMedia(factory: VoiceDataStoreFactory): DataStore<Boolean> {
+    return factory.boolean("resumeOtherMedia", defaultValue = false)
+  }
 }
 
 private class LegacyDarkThemeMigration(

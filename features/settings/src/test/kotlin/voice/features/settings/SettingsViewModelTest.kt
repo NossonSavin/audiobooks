@@ -44,6 +44,7 @@ class SettingsViewModelTest {
   private val analyticsConsentStore = MemoryDataStore(false)
   private val developerMenuUnlockedStore = MemoryDataStore(false)
   private val hideCoverFromSystemStore = MemoryDataStore(false)
+  private val resumeOtherMediaStore = MemoryDataStore(false)
   private val player = mockk<PlayerController>(relaxed = true)
   private val navigator = mockk<Navigator> {
     every { goTo(any()) } just Runs
@@ -77,6 +78,7 @@ class SettingsViewModelTest {
     kioskModeFeatureFlag = kioskModeFeatureFlag,
     developerMenuUnlockedStore = developerMenuUnlockedStore,
     hideCoverFromSystemStore = hideCoverFromSystemStore,
+    resumeOtherMediaStore = resumeOtherMediaStore,
     player = player,
     dynamicColorAvailability = dynamicColorAvailability,
     dispatcherProvider = DispatcherProvider(scope.coroutineContext, scope.coroutineContext, scope.coroutineContext),

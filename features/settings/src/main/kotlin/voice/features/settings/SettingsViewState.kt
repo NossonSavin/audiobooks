@@ -21,6 +21,7 @@ data class SettingsViewState(
   val showSupportDevelopment: Boolean,
   val kioskMode: Boolean,
   val hideCoverFromSystem: Boolean,
+  val resumeOtherMedia: Boolean,
 ) {
 
   enum class Dialog {
@@ -50,6 +51,7 @@ data class SettingsViewState(
         showSupportDevelopment = true,
         kioskMode = false,
         hideCoverFromSystem = false,
+        resumeOtherMedia = false,
       )
     }
   }

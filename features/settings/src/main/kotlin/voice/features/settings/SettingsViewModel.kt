@@ -26,6 +26,7 @@ import voice.core.data.store.DefaultPlaybackSpeedStore
 import voice.core.data.store.DeveloperMenuUnlockedStore
 import voice.core.data.store.GridModeStore
 import voice.core.data.store.HideCoverFromSystemStore
+import voice.core.data.store.ResumeOtherMediaStore
 import voice.core.data.store.SeekTimeStore
 import voice.core.data.store.SleepTimerPreferenceStore
 import voice.core.data.store.ThemeColorSchemeStore
@@ -66,6 +67,8 @@ class SettingsViewModel(
   private val developerMenuUnlockedStore: DataStore<Boolean>,
   @HideCoverFromSystemStore
   private val hideCoverFromSystemStore: DataStore<Boolean>,
+  @ResumeOtherMediaStore
+  private val resumeOtherMediaStore: DataStore<Boolean>,
   private val player: PlayerController,
   private val dynamicColorAvailability: DynamicColorAvailability,
   dispatcherProvider: DispatcherProvider,
@@ -94,6 +97,7 @@ class SettingsViewModel(
     }
     val showDeveloperMenu by remember { developerMenuUnlockedStore.data }.collectAsState(initial = false)
     val hideCoverFromSystem by remember { hideCoverFromSystemStore.data }.collectAsState(initial = false)
+    val resumeOtherMedia by remember { resumeOtherMediaStore.data }.collectAsState(initial = false)
     val showThemeColorSchemePref = remember {
       dynamicColorAvailability.isSupported()
     }
@@ -122,6 +126,7 @@ class SettingsViewModel(
       showSupportDevelopment = appInfoProvider.supportDevelopmentIncluded,
       kioskMode = kioskMode,
       hideCoverFromSystem = hideCoverFromSystem,
+      resumeOtherMedia = resumeOtherMedia,
     )
   }
 
@@ -272,6 +277,12 @@ class SettingsViewModel(
       val newValue = !hideCoverFromSystemStore.data.first()
       hideCoverFromSystemStore.updateData { newValue }
       player.refreshMediaItem()
+    }
+  }
+
+  override fun toggleResumeOtherMedia() {
+    mainScope.launch {
+      resumeOtherMediaStore.updateData { !it }
     }
   }
 

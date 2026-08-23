@@ -30,6 +30,7 @@ import voice.core.data.ChapterId
 import voice.core.data.repo.BookRepository
 import voice.core.data.store.CurrentBookStore
 import voice.core.data.store.HideCoverFromSystemStore
+import voice.core.data.store.ResumeOtherMediaStore
 import voice.core.logging.api.Logger
 import voice.core.playback.misc.Decibel
 import voice.core.playback.session.CustomCommand
@@ -50,6 +51,8 @@ class PlayerController(
   private val currentBookStoreId: DataStore<BookId?>,
   @HideCoverFromSystemStore
   private val hideCoverFromSystemStore: DataStore<Boolean>,
+  @ResumeOtherMediaStore
+  private val resumeOtherMediaStore: DataStore<Boolean>,
   private val bookRepository: BookRepository,
   private val mediaItemProvider: MediaItemProvider,
 ) {
@@ -177,10 +180,22 @@ class PlayerController(
       android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync paused in ${System.currentTimeMillis() - t0}ms")
     } else {
       val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-      if (pauseOtherMusicIfActive && audioManager?.isMusicActive == true) {
+      val isOtherAudioActive = audioManager?.isMusicActive == true
+      if (pauseOtherMusicIfActive && isOtherAudioActive) {
         android.util.Log.i("VOICE_PERF", "[PlayerController] Other audio is active, sending media pause key event")
         pauseOtherMusic(audioManager)
       } else {
+        val resumeOtherMedia = resumeOtherMediaStore.data.first()
+        if (pauseOtherMusicIfActive && resumeOtherMedia && audioManager != null) {
+          android.util.Log.i("VOICE_PERF", "[PlayerController] Trying to resume external media...")
+          resumeOtherMusic(audioManager)
+          delay(100.milliseconds)
+          if (audioManager.isMusicActive) {
+            android.util.Log.i("VOICE_PERF", "[PlayerController] External media resumed successfully")
+            return
+          }
+          android.util.Log.i("VOICE_PERF", "[PlayerController] External media did not resume, falling back to audiobook")
+        }
         if (maybePrepare(controller)) {
           controller.play()
           android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync played in ${System.currentTimeMillis() - t0}ms")
@@ -192,6 +207,13 @@ class PlayerController(
   private fun pauseOtherMusic(audioManager: AudioManager) {
     val eventDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
     val eventUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+    audioManager.dispatchMediaKeyEvent(eventDown)
+    audioManager.dispatchMediaKeyEvent(eventUp)
+  }
+
+  private fun resumeOtherMusic(audioManager: AudioManager) {
+    val eventDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
+    val eventUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
     audioManager.dispatchMediaKeyEvent(eventDown)
     audioManager.dispatchMediaKeyEvent(eventUp)
   }

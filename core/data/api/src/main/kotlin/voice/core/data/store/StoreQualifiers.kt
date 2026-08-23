@@ -52,3 +52,6 @@ public annotation class FeatureFlagOverridesStore
 
 @Qualifier
 public annotation class HideCoverFromSystemStore
+
+@Qualifier
+public annotation class ResumeOtherMediaStore

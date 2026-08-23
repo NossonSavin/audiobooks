@@ -188,6 +188,28 @@ private fun Settings(
       }
 
       item {
+        ListItem(
+          modifier = Modifier.clickable { listener.toggleResumeOtherMedia() },
+          leadingContent = {
+            Icon(
+              imageVector = VoiceIcons.AudioFile,
+              contentDescription = stringResource(StringsR.string.settings_playback_resume_other_media_title),
+            )
+          },
+          headlineContent = { Text(stringResource(StringsR.string.settings_playback_resume_other_media_title)) },
+          supportingContent = { Text(stringResource(StringsR.string.settings_playback_resume_other_media_summary)) },
+          trailingContent = {
+            Switch(
+              checked = viewState.resumeOtherMedia,
+              onCheckedChange = {
+                listener.toggleResumeOtherMedia()
+              },
+            )
+          },
+        )
+      }
+
+      item {
         AutoSleepTimerCard(viewState.autoSleepTimer, listener)
       }
 

@@ -29,6 +29,7 @@ interface SettingsListener {
   fun setAutoSleepTimerEnd(time: LocalTime)
   fun toggleAnalytics()
   fun toggleHideCoverFromSystem()
+  fun toggleResumeOtherMedia()
   fun openFolderPicker()
   fun onAppVersionClick()
 
@@ -60,6 +61,7 @@ interface SettingsListener {
       override fun setAutoSleepTimerEnd(time: LocalTime) {}
       override fun toggleAnalytics() {}
       override fun toggleHideCoverFromSystem() {}
+      override fun toggleResumeOtherMedia() {}
       override fun openFolderPicker() {}
       override fun onAppVersionClick() {}
       override fun openDeveloperMenu() {}
