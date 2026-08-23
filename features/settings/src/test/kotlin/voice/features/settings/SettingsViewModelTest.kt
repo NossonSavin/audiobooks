@@ -23,6 +23,7 @@ import voice.core.data.sleeptimer.SleepTimerPreference
 import voice.core.featureflag.MemoryFeatureFlag
 import voice.core.ui.DynamicColorAvailability
 import voice.core.ui.GridCount
+import voice.core.playback.PlayerController
 import voice.navigation.Destination
 import voice.navigation.Navigator
 import kotlin.test.Test
@@ -42,6 +43,8 @@ class SettingsViewModelTest {
   private val sleepTimerPreferenceStore = MemoryDataStore(SleepTimerPreference.Default)
   private val analyticsConsentStore = MemoryDataStore(false)
   private val developerMenuUnlockedStore = MemoryDataStore(false)
+  private val hideCoverFromSystemStore = MemoryDataStore(false)
+  private val player = mockk<PlayerController>(relaxed = true)
   private val navigator = mockk<Navigator> {
     every { goTo(any()) } just Runs
   }
@@ -73,6 +76,8 @@ class SettingsViewModelTest {
     gridCount = gridCount,
     kioskModeFeatureFlag = kioskModeFeatureFlag,
     developerMenuUnlockedStore = developerMenuUnlockedStore,
+    hideCoverFromSystemStore = hideCoverFromSystemStore,
+    player = player,
     dynamicColorAvailability = dynamicColorAvailability,
     dispatcherProvider = DispatcherProvider(scope.coroutineContext, scope.coroutineContext, scope.coroutineContext),
   )
