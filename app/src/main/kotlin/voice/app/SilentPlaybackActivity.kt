@@ -3,8 +3,6 @@ package voice.app
 import android.app.Activity
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -12,8 +10,14 @@ import android.os.VibratorManager
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import voice.core.common.rootGraphAs
 import voice.core.playback.PlayerController
+import kotlin.time.Duration.Companion.milliseconds
 
 @ContributesTo(AppScope::class)
 interface SilentPlaybackActivityGraph {
@@ -23,20 +27,29 @@ interface SilentPlaybackActivityGraph {
 class SilentPlaybackActivity : Activity() {
 
   @Inject
-  private lateinit var playerController: PlayerController
+  lateinit var playerController: PlayerController
+
+  private val scope = CoroutineScope(Dispatchers.Main.immediate)
 
   override fun onCreate(savedInstanceState: Bundle?) {
     rootGraphAs<SilentPlaybackActivityGraph>().inject(this)
     super.onCreate(savedInstanceState)
 
     vibrateHardHaptic()
-    playerController.playPause()
-    Handler(Looper.getMainLooper()).postDelayed({
+    scope.launch {
+      withTimeoutOrNull(2000.milliseconds) {
+        playerController.playPauseAsync()
+      }
       finish()
       moveTaskToBack(true)
       @Suppress("DEPRECATION")
       overridePendingTransition(0, 0)
-    }, 100)
+    }
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    scope.cancel()
   }
 
   private fun vibrateHardHaptic() {

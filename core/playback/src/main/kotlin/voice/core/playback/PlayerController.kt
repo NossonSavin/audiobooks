@@ -106,7 +106,12 @@ class PlayerController(
     }
   }
 
-  fun pause() = executeAfterPrepare { controller ->
+  fun pause() {
+    scope.launch { pauseAsync() }
+  }
+
+  suspend fun pauseAsync() {
+    val controller = awaitConnect() ?: return
     controller.pause()
   }
 
@@ -142,15 +147,37 @@ class PlayerController(
     controller.sendCustomCommand(CustomCommand.ForceSeekToNext)
   }
 
-  fun play() = executeAfterPrepare { controller ->
-    controller.play()
+  fun play() {
+    scope.launch { playAsync() }
   }
 
-  fun playPause() = executeAfterPrepare { controller ->
+  suspend fun playAsync() {
+    val controller = awaitConnect() ?: return
+    if (maybePrepare(controller)) {
+      controller.play()
+    }
+  }
+
+  fun playPause() {
+    scope.launch { playPauseAsync() }
+  }
+
+  suspend fun playPauseAsync() {
+    val t0 = System.currentTimeMillis()
+    android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync started")
+    val controller = awaitConnect()
+    if (controller == null) {
+      android.util.Log.w("VOICE_PERF", "[PlayerController] awaitConnect returned null!")
+      return
+    }
     if (controller.isPlaying) {
       controller.pause()
+      android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync paused in ${System.currentTimeMillis() - t0}ms")
     } else {
-      controller.play()
+      if (maybePrepare(controller)) {
+        controller.play()
+        android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync played in ${System.currentTimeMillis() - t0}ms")
+      }
     }
   }
 

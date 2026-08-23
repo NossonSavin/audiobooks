@@ -37,16 +37,15 @@ class WidgetButtonReceiver : BroadcastReceiver() {
     scope.launch {
       try {
         withTimeout(20.seconds) {
-          player.awaitConnect()
           when (action) {
-            Action.PlayPause -> player.playPause()
+            Action.PlayPause -> player.playPauseAsync()
             Action.FastForward -> {
               player.fastForward()
-              player.play()
+              player.playAsync()
             }
             Action.Rewind -> {
               player.rewind()
-              player.play()
+              player.playAsync()
             }
           }
         }

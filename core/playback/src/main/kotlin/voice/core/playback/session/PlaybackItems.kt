@@ -27,18 +27,16 @@ internal data class PlaybackItem(
 
 internal fun Book.playbackItems(): List<PlaybackItem> {
   var index = 0
-  return chapters.map { chapter ->
-    PlaybackItem(
-      index = index++,
-      bookId = id,
-      chapter = chapter,
-      markIndex = 0,
-      mark = ChapterMark(
-        name = chapter.name ?: chapter.id.value,
-        startMs = 0L,
-        endMs = chapter.duration
+  return chapters.flatMap { chapter ->
+    chapter.chapterMarks.mapIndexed { markIndex, mark ->
+      PlaybackItem(
+        index = index++,
+        bookId = id,
+        chapter = chapter,
+        markIndex = markIndex,
+        mark = mark,
       )
-    )
+    }
   }
 }
 
@@ -46,8 +44,10 @@ internal fun Book.playbackItemForPosition(
   chapterId: ChapterId,
   positionInChapterMs: Long,
 ): PlaybackItem? {
+  val chapter = chapters.firstOrNull { it.id == chapterId } ?: return null
+  val mark = chapter.markForPosition(positionInChapterMs)
   return playbackItems().firstOrNull {
-    it.chapter.id == chapterId
+    it.chapter.id == chapterId && it.mark == mark
   }
 }
 
