@@ -31,7 +31,7 @@ internal fun ColumnScope.TopBarTrailingIcon(
         BookFolderIcon(withHint = showAddBookHint, onClick = onBookFolderClick)
       }
       IconButton(onClick = onRefresh) {
-        Icon(imageVector = VoiceIcons.Undo, contentDescription = "Refresh")
+        Icon(imageVector = VoiceIcons.Refresh, contentDescription = "Refresh")
       }
       SettingsIcon(onSettingsClick)
     }
