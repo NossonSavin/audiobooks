@@ -195,6 +195,7 @@ internal fun BookOverview(
         onActiveChange = onSearchActiveChange,
         onQueryChange = onSearchQueryChange,
         onSearchBookClick = onSearchBookClick,
+        onRefresh = onRefresh,
       )
     },
     floatingActionButton = {

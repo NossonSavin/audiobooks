@@ -86,7 +86,7 @@ class MediaItemProvider(
             mark = mark,
           ),
           content = content,
-          hideCoverFromSystem = hide,
+          imageUri = content.cover?.toProvidedUri().takeUnless { hide },
         )
       }
       MediaId.Recent -> recent()
@@ -118,8 +118,9 @@ class MediaItemProvider(
 
   internal suspend fun playbackItems(book: Book): List<MediaItem> {
     val hide = hideCoverFromSystem()
+    val imageUri = book.content.cover?.toProvidedUri().takeUnless { hide }
     return book.playbackItems().map { playbackItem ->
-      mediaItem(playbackItem, book.content, hide)
+      mediaItem(playbackItem, book.content, imageUri)
     }
   }
 
@@ -180,9 +181,9 @@ class MediaItemProvider(
   private fun mediaItem(
     playbackItem: PlaybackItem,
     content: BookContent,
-    hideCoverFromSystem: Boolean,
+    imageUri: Uri?,
   ): MediaItem {
-    Logger.d("Creating MediaItem for playbackItem ${playbackItem.mediaId}, hideCoverFromSystem=$hideCoverFromSystem")
+    Logger.d("Creating MediaItem for playbackItem ${playbackItem.mediaId}")
     return MediaItem(
       title = playbackItem.mark.name
         ?: playbackItem.chapter.name
@@ -191,7 +192,7 @@ class MediaItemProvider(
       browsable = false,
       isPlayable = true,
       sourceUri = playbackItem.chapter.id.toUri(),
-      imageUri = content.cover?.toProvidedUri().takeUnless { hideCoverFromSystem },
+      imageUri = imageUri,
       artist = content.author,
       durationMs = playbackItem.mark.durationMs,
       clippingConfiguration = ClippingConfiguration.Builder()

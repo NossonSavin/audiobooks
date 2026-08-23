@@ -25,6 +25,7 @@ internal fun ColumnScope.BookOverviewSearchBar(
   showAddBookHint: Boolean,
   showFolderPickerIcon: Boolean,
   searchViewState: BookSearchViewState,
+  onRefresh: () -> Unit,
 ) {
   SearchBar(
     inputField = {
@@ -51,6 +52,7 @@ internal fun ColumnScope.BookOverviewSearchBar(
             showFolderPickerIcon = showFolderPickerIcon,
             onBookFolderClick = onBookFolderClick,
             onSettingsClick = onSettingsClick,
+            onRefresh = onRefresh,
           )
         },
       )

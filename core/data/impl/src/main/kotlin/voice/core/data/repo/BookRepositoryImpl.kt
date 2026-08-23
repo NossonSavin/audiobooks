@@ -37,6 +37,7 @@ public class BookRepositoryImpl(
   override fun flow(): Flow<List<Book>> {
     return contentRepo.flow()
       .map { contents ->
+        warmUp()
         contents.filter { it.isActive }
           .mapNotNull { content ->
             content.book()
@@ -45,6 +46,7 @@ public class BookRepositoryImpl(
   }
 
   override suspend fun all(): List<Book> {
+    warmUp()
     return contentRepo.all()
       .filter { it.isActive }
       .mapNotNull { it.book() }
@@ -73,7 +75,7 @@ public class BookRepositoryImpl(
   }
 
   private suspend fun BookContent.book(): Book? {
-    warmUp()
+    chapterRepo.warmup(chapters)
     return Book(
       content = this,
       chapters = chapters.map { chapterId ->
