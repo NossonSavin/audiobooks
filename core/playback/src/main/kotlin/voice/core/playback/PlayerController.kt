@@ -87,6 +87,15 @@ class PlayerController(
     }
   }
 
+  fun prewarm() {
+    scope.launch {
+      val controller = awaitConnect() ?: return@launch
+      if (maybePrepare(controller)) {
+        android.util.Log.i("VOICE_PERF", "[PlayerController] Prewarm completed successfully")
+      }
+    }
+  }
+
   fun pauseIfCurrentBookDifferentFrom(id: BookId) {
     scope.launch {
       val controller = awaitConnect() ?: return@launch

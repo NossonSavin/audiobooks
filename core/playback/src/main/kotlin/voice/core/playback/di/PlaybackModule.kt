@@ -40,6 +40,7 @@ interface PlaybackModule {
   fun mediaSourceFactory(context: Context): MediaSource.Factory {
     val dataSourceFactory = voice.core.playback.session.FastMediaDataSource.Factory(context)
     val extractorsFactory = DefaultExtractorsFactory()
+      .setMp4ExtractorFlags(androidx.media3.extractor.mp4.Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
     return DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
   }
 

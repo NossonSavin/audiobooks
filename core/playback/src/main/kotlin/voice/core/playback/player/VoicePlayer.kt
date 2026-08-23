@@ -318,12 +318,19 @@ class VoicePlayer(
     setBook(first)
   }
 
+  private var currentLoadedBookId: BookId? = null
+
   private fun setBook(mediaItem: MediaItem) {
     val t0 = System.currentTimeMillis()
     android.util.Log.i("VOICE_PERF", "[VoicePlayer] setBook started for ${mediaItem.mediaId}")
     val mediaId = mediaItem.mediaId.toMediaIdOrNull()
     if (mediaId != null) {
       if (mediaId is MediaId.Book) {
+        if (currentLoadedBookId == mediaId.id && player.playbackState != Player.STATE_IDLE) {
+          android.util.Log.i("VOICE_PERF", "[VoicePlayer] Book ${mediaId.id} is already loaded/preparing! Skipping duplicate setBook.")
+          return
+        }
+        currentLoadedBookId = mediaId.id
         val tRepo = System.currentTimeMillis()
         val book = runBlocking {
           repo.get(mediaId.id)
