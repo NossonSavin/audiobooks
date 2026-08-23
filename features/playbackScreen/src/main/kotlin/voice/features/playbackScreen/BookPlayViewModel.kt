@@ -87,9 +87,11 @@ class BookPlayViewModel(
     field = mutableStateOf<BookPlayDialogViewState?>(null)
 
   init {
+    android.util.Log.i("VOICE_PERF", "[BookPlayViewModel] init started for bookId=$bookId")
     scope.launch {
       player.pauseIfCurrentBookDifferentFrom(bookId)
       currentBookStoreId.updateData { bookId }
+      android.util.Log.i("VOICE_PERF", "[BookPlayViewModel] init completed: currentBookStoreId updated to $bookId")
     }
   }
 
@@ -254,6 +256,7 @@ class BookPlayViewModel(
   }
 
   fun playPause() {
+    android.util.Log.i("VOICE_PERF", "[BookPlayViewModel] playPause() clicked (current playState=${playStateManager.playState})")
     if (playStateManager.playState != PlayStateManager.PlayState.Playing) {
       scope.launch {
         if (batteryOptimization.shouldRequest()) {

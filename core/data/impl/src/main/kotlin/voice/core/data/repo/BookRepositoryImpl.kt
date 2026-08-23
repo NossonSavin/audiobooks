@@ -26,11 +26,13 @@ public class BookRepositoryImpl(
     if (warmedUp) return
     mutex.withLock {
       if (warmedUp) return@withLock
+      val t0 = System.currentTimeMillis()
       val chapters = contentRepo.all()
         .filter { it.isActive }
         .flatMap { it.chapters }
       chapterRepo.warmup(chapters)
       warmedUp = true
+      android.util.Log.i("VOICE_PERF", "[BookRepositoryImpl] warmUp took ${System.currentTimeMillis() - t0}ms for ${chapters.size} chapters")
     }
   }
 
@@ -58,7 +60,10 @@ public class BookRepositoryImpl(
   }
 
   override suspend fun get(id: BookId): Book? {
-    return contentRepo.get(id)?.book()
+    val t0 = System.currentTimeMillis()
+    val res = contentRepo.get(id)?.book()
+    android.util.Log.i("VOICE_PERF", "[BookRepositoryImpl] get($id) took ${System.currentTimeMillis() - t0}ms")
+    return res
   }
 
   override suspend fun updateBook(
@@ -75,8 +80,9 @@ public class BookRepositoryImpl(
   }
 
   private suspend fun BookContent.book(): Book? {
+    val t0 = System.currentTimeMillis()
     chapterRepo.warmup(chapters)
-    return Book(
+    val b = Book(
       content = this,
       chapters = chapters.map { chapterId ->
         val chapter = chapterRepo.get(chapterId)
@@ -87,5 +93,7 @@ public class BookRepositoryImpl(
         chapter
       },
     )
+    android.util.Log.i("VOICE_PERF", "[BookRepositoryImpl] BookContent.book() for ${this.id} took ${System.currentTimeMillis() - t0}ms (${chapters.size} chapters)")
+    return b
   }
 }

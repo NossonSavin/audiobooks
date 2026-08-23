@@ -53,10 +53,12 @@ class PositionUpdater(
                 if (experimentalPlaybackPersistenceFeatureFlag.get()) {
                   5.minutes
                 } else {
-                  400.milliseconds
+                  2000.milliseconds
                 },
               )
-              flushPositionNow()
+              if (player.isPlaying) {
+                flushPositionNow()
+              }
             }
           }
         }

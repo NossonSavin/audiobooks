@@ -38,9 +38,8 @@ interface PlaybackModule {
   @Provides
   @SingleIn(PlaybackScope::class)
   fun mediaSourceFactory(context: Context): MediaSource.Factory {
-    val dataSourceFactory = DefaultDataSource.Factory(context)
+    val dataSourceFactory = voice.core.playback.session.FastMediaDataSource.Factory(context)
     val extractorsFactory = DefaultExtractorsFactory()
-      .setConstantBitrateSeekingEnabled(true)
     return DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
   }
 
@@ -61,10 +60,22 @@ interface PlaybackModule {
       .setUsage(C.USAGE_MEDIA)
       .build()
 
+    val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
+      .setBufferDurationsMs(
+        /* minBufferMs = */ 10_000,
+        /* maxBufferMs = */ 30_000,
+        /* bufferForPlaybackMs = */ 150,
+        /* bufferForPlaybackAfterRebufferMs = */ 300,
+      )
+      .setPrioritizeTimeOverSizeThresholds(true)
+      .setBackBuffer(0, false)
+      .build()
+
     return ExoPlayer.Builder(context, onlyAudioRenderersFactory, mediaSourceFactory)
       .setAudioAttributes(audioAttributes, true)
       .setHandleAudioBecomingNoisy(true)
       .setWakeMode(C.WAKE_MODE_LOCAL)
+      .setLoadControl(loadControl)
       .build()
       .also { player ->
         if (media3AudioOffloadFeatureFlag.get()) {

@@ -86,7 +86,6 @@ class BookOverviewViewModel(
   private var dialog by mutableStateOf<BookOverviewViewState.Dialog?>(null)
 
   fun attach() {
-    mediaScanner.triggerScan()
   }
 
   fun onRefresh() {

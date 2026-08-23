@@ -53,12 +53,33 @@ internal fun MediaItem(
 
   val metadata = metadataBuilder.build()
 
-  return MediaItem.Builder()
+  val mimeType = when {
+    sourceUri != null -> {
+      val path = sourceUri.toString().lowercase()
+      when {
+        path.contains(".m4b") || path.contains(".m4a") || path.contains(".mp4") -> androidx.media3.common.MimeTypes.AUDIO_MP4
+        path.contains(".mp3") -> androidx.media3.common.MimeTypes.AUDIO_MPEG
+        path.contains(".ogg") || path.contains(".opus") -> androidx.media3.common.MimeTypes.AUDIO_OGG
+        path.contains(".flac") -> androidx.media3.common.MimeTypes.AUDIO_FLAC
+        path.contains(".wav") -> androidx.media3.common.MimeTypes.AUDIO_WAV
+        path.contains(".aac") -> androidx.media3.common.MimeTypes.AUDIO_AAC
+        else -> null
+      }
+    }
+    else -> null
+  }
+
+  val builder = MediaItem.Builder()
     .setMediaId(Json.encodeToString(MediaId.serializer(), mediaId))
     .setMediaMetadata(metadata)
     .setUri(sourceUri)
     .setClippingConfiguration(clippingConfiguration)
-    .build()
+
+  if (mimeType != null) {
+    builder.setMimeType(mimeType)
+  }
+
+  return builder.build()
 }
 
 fun String.toMediaIdOrNull(): MediaId? = try {

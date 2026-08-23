@@ -68,6 +68,7 @@ class LibrarySessionCallback(
     startIndex: Int,
     startPositionMs: Long,
   ): ListenableFuture<MediaItemsWithStartPosition> {
+    android.util.Log.i("VOICE_PERF", "[LibrarySessionCallback] onSetMediaItems called with ${mediaItems.map { it.mediaId }}")
     Logger.d("onSetMediaItems(mediaItems.size=${mediaItems.size}, startIndex=$startIndex, startPosition=$startPositionMs)")
     val item = mediaItems.singleOrNull()
     return if (startIndex == C.INDEX_UNSET && startPositionMs == C.TIME_UNSET && item != null) {
@@ -146,12 +147,16 @@ class LibrarySessionCallback(
     controller: ControllerInfo,
     isForPlayback: Boolean,
   ): ListenableFuture<MediaItemsWithStartPosition> {
+    val t0 = System.currentTimeMillis()
+    android.util.Log.i("VOICE_PERF", "[LibrarySessionCallback] onPlaybackResumption called (isForPlayback=$isForPlayback)")
     Logger.d("onPlaybackResumption")
     return scope.future {
       val currentBook = currentBook()
       val hide = hideCoverFromSystemStore.data.first()
       if (currentBook != null) {
-        mediaItemProvider.mediaItemsWithStartPosition(currentBook, hide)
+        val result = mediaItemProvider.mediaItemsWithStartPosition(currentBook, hide)
+        android.util.Log.i("VOICE_PERF", "[LibrarySessionCallback] onPlaybackResumption returning item=${result.mediaItems.map { it.mediaId }} in ${System.currentTimeMillis() - t0}ms")
+        result
       } else {
         throw UnsupportedOperationException()
       }
@@ -167,6 +172,7 @@ class LibrarySessionCallback(
     session: MediaSession,
     controller: ControllerInfo,
   ): ConnectionResult {
+    android.util.Log.i("VOICE_PERF", "[LibrarySessionCallback] onConnect from ${controller.packageName}")
     Logger.d("onConnect to ${controller.packageName}")
 
     if (player.playbackState == Player.STATE_IDLE &&

@@ -146,16 +146,24 @@ class PlayerController(
   }
 
   private suspend fun maybePrepare(controller: MediaController): Boolean {
+    val t0 = System.currentTimeMillis()
     val bookId = currentBookStoreId.data.first() ?: return false
-    if (controller.currentBookId() == bookId &&
+    val currentBookId = controller.currentBookId()
+    android.util.Log.i("VOICE_PERF", "[PlayerController] maybePrepare: targetBookId=$bookId, controllerBookId=$currentBookId, state=${controller.playbackState}")
+    if (currentBookId == bookId &&
       controller.playbackState in listOf(Player.STATE_READY, Player.STATE_BUFFERING)
     ) {
+      android.util.Log.i("VOICE_PERF", "[PlayerController] maybePrepare: already ready/buffering!")
       return true
     }
+    val tRepo = System.currentTimeMillis()
     val book = bookRepository.get(bookId) ?: return false
+    android.util.Log.i("VOICE_PERF", "[PlayerController] maybePrepare: bookRepo.get took ${System.currentTimeMillis() - tRepo}ms")
     val hideCoverFromSystem = hideCoverFromSystemStore.data.first()
-    controller.setMediaItem(mediaItemProvider.mediaItem(book, hideCoverFromSystem))
+    val item = mediaItemProvider.mediaItem(book, hideCoverFromSystem)
+    controller.setMediaItem(item)
     controller.prepare()
+    android.util.Log.i("VOICE_PERF", "[PlayerController] maybePrepare: setMediaItem+prepare sent via IPC in ${System.currentTimeMillis() - t0}ms")
     return true
   }
 
@@ -283,17 +291,30 @@ class PlayerController(
 
   private inline fun executeAfterPrepare(crossinline action: suspend (MediaController) -> Unit) {
     scope.launch {
-      val controller = awaitConnect() ?: return@launch
+      val t0 = System.currentTimeMillis()
+      android.util.Log.i("VOICE_PERF", "[PlayerController] executeAfterPrepare started")
+      val controller = awaitConnect()
+      if (controller == null) {
+        android.util.Log.w("VOICE_PERF", "[PlayerController] awaitConnect returned null!")
+        return@launch
+      }
+      android.util.Log.i("VOICE_PERF", "[PlayerController] awaitConnect took ${System.currentTimeMillis() - t0}ms")
+      val tPrep = System.currentTimeMillis()
       if (maybePrepare(controller)) {
+        android.util.Log.i("VOICE_PERF", "[PlayerController] maybePrepare took ${System.currentTimeMillis() - tPrep}ms. Calling action...")
         action(controller)
+        android.util.Log.i("VOICE_PERF", "[PlayerController] action completed (Total executeAfterPrepare=${System.currentTimeMillis() - t0}ms)")
       }
     }
   }
 
   @IgnorableReturnValue
   suspend fun awaitConnect(): MediaController? {
+    val t0 = System.currentTimeMillis()
     return try {
-      controller.await()
+      val res = controller.await()
+      android.util.Log.i("VOICE_PERF", "[PlayerController] controller.await() completed in ${System.currentTimeMillis() - t0}ms")
+      res
     } catch (e: Exception) {
       if (e is CancellationException) currentCoroutineContext().ensureActive()
       Logger.w(e, "Error while connecting to media controller")

@@ -149,7 +149,6 @@ class MediaItemProvider(
     book: Book,
     hideCoverFromSystem: Boolean,
   ): MediaItem {
-    Logger.d("Creating MediaItem for book ${book.id}, hideCoverFromSystem=$hideCoverFromSystem")
     return MediaItem(
       title = book.content.name,
       mediaId = MediaId.Book(book.id),
@@ -165,13 +164,12 @@ class MediaItemProvider(
     content: BookContent,
     hideCoverFromSystem: Boolean,
   ): MediaItem {
-    Logger.d("Creating MediaItem for chapter ${chapter.id}, hideCoverFromSystem=$hideCoverFromSystem")
     return MediaItem(
       title = chapter.name ?: chapter.id.value,
       mediaId = MediaId.Chapter(bookId = content.id, chapterId = chapter.id),
       browsable = false,
       isPlayable = true,
-      sourceUri = chapter.id.toUri(),
+      sourceUri = chapter.id.toUri().toFastPlaybackUri(),
       imageUri = content.cover?.toProvidedUri().takeUnless { hideCoverFromSystem },
       artist = content.author,
       mediaType = MediaType.AudioBookChapter,
@@ -183,7 +181,15 @@ class MediaItemProvider(
     content: BookContent,
     imageUri: Uri?,
   ): MediaItem {
-    Logger.d("Creating MediaItem for playbackItem ${playbackItem.mediaId}")
+    val isClippingNeeded = playbackItem.mark.startMs > 0L || playbackItem.mark.endMs < playbackItem.chapter.duration
+    val clipping = if (isClippingNeeded) {
+      ClippingConfiguration.Builder()
+        .setStartPositionMs(playbackItem.mark.startMs)
+        .setEndPositionMs(playbackItem.mark.endMs)
+        .build()
+    } else {
+      ClippingConfiguration.UNSET
+    }
     return MediaItem(
       title = playbackItem.mark.name
         ?: playbackItem.chapter.name
@@ -191,14 +197,11 @@ class MediaItemProvider(
       mediaId = playbackItem.mediaId,
       browsable = false,
       isPlayable = true,
-      sourceUri = playbackItem.chapter.id.toUri(),
+      sourceUri = playbackItem.chapter.id.toUri().toFastPlaybackUri(),
       imageUri = imageUri,
       artist = content.author,
       durationMs = playbackItem.mark.durationMs,
-      clippingConfiguration = ClippingConfiguration.Builder()
-        .setStartPositionMs(playbackItem.mark.startMs)
-        .setEndPositionMs(playbackItem.mark.endMs)
-        .build(),
+      clippingConfiguration = clipping,
       mediaType = MediaType.AudioBookChapter,
     )
   }

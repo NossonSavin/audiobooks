@@ -32,11 +32,15 @@ class ImageFileProvider(private val application: Application) {
           "com.google.android.projection.gearhead",
           "com.google.android.wearable.app",
         ).forEach { grantedPackage ->
-          application.grantUriPermission(
-            grantedPackage,
-            uri,
-            Intent.FLAG_GRANT_READ_URI_PERMISSION,
-          )
+          try {
+            application.grantUriPermission(
+              grantedPackage,
+              uri,
+              Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+          } catch (e: Exception) {
+            // Ignore if package is not present
+          }
         }
       }
   }
