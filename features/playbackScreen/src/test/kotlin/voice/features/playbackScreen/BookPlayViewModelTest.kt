@@ -247,7 +247,11 @@ class BookPlayViewModelTest {
     backgroundScope.launchMolecule(RecompositionMode.Immediate) {
       viewModel.viewState()
     }.test {
-      assertEquals(expected = 1.25F, actual = awaitItem()!!.playbackSpeed)
+      var item = awaitItem()
+      while (item == null || item.playbackSpeed != 1.25F) {
+        item = awaitItem()
+      }
+      assertEquals(expected = 1.25F, actual = item.playbackSpeed)
     }
   }
 

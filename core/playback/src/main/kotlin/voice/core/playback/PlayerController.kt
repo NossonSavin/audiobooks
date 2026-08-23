@@ -2,6 +2,8 @@ package voice.core.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.media.AudioManager
+import android.view.KeyEvent
 import androidx.datastore.core.DataStore
 import androidx.media3.common.C
 import androidx.media3.common.Player
@@ -158,13 +160,13 @@ class PlayerController(
     }
   }
 
-  fun playPause() {
-    scope.launch { playPauseAsync() }
+  fun playPause(pauseOtherMusicIfActive: Boolean = true) {
+    scope.launch { playPauseAsync(pauseOtherMusicIfActive) }
   }
 
-  suspend fun playPauseAsync() {
+  suspend fun playPauseAsync(pauseOtherMusicIfActive: Boolean = true) {
     val t0 = System.currentTimeMillis()
-    android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync started")
+    android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync started (pauseOtherMusicIfActive=$pauseOtherMusicIfActive)")
     val controller = awaitConnect()
     if (controller == null) {
       android.util.Log.w("VOICE_PERF", "[PlayerController] awaitConnect returned null!")
@@ -174,11 +176,24 @@ class PlayerController(
       controller.pause()
       android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync paused in ${System.currentTimeMillis() - t0}ms")
     } else {
-      if (maybePrepare(controller)) {
-        controller.play()
-        android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync played in ${System.currentTimeMillis() - t0}ms")
+      val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+      if (pauseOtherMusicIfActive && audioManager?.isMusicActive == true) {
+        android.util.Log.i("VOICE_PERF", "[PlayerController] Other audio is active, sending media pause key event")
+        pauseOtherMusic(audioManager)
+      } else {
+        if (maybePrepare(controller)) {
+          controller.play()
+          android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync played in ${System.currentTimeMillis() - t0}ms")
+        }
       }
     }
+  }
+
+  private fun pauseOtherMusic(audioManager: AudioManager) {
+    val eventDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
+    val eventUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+    audioManager.dispatchMediaKeyEvent(eventDown)
+    audioManager.dispatchMediaKeyEvent(eventUp)
   }
 
   private suspend fun maybePrepare(controller: MediaController): Boolean {
