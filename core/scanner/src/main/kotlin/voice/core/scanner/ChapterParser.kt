@@ -1,6 +1,9 @@
 package voice.core.scanner
 
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import voice.core.data.Chapter
 import voice.core.data.ChapterId
 import voice.core.data.isAudioFile
@@ -20,20 +23,26 @@ internal class ChapterParser(
   private val mediaAnalyzer: MediaAnalyzer,
 ) {
 
-  suspend fun parse(documentFile: CachedDocumentFile): ChapterParseResult {
-    val result = mutableListOf<Chapter>()
-    val analyzedMetadata = mutableMapOf<ChapterId, Metadata>()
+  suspend fun parse(
+    documentFile: CachedDocumentFile,
+    audioFiles: List<CachedDocumentFile>? = null,
+  ): ChapterParseResult = coroutineScope {
+    val filesToParse = audioFiles ?: collectAudioFiles(documentFile)
+    if (filesToParse.isEmpty()) {
+      return@coroutineScope ChapterParseResult(emptyList(), null)
+    }
 
-    suspend fun parseChapters(file: CachedDocumentFile) {
-      if (file.isAudioFile()) {
+    val parsedResults = filesToParse.map { file ->
+      async {
         val id = ChapterId(file.uri)
+        var analyzed: Metadata? = null
         val chapter = chapterRepo.getOrPut(
           id = id,
           lastModified = Instant.ofEpochMilli(file.lastModified),
           fileSize = file.length,
         ) {
           val metaData = mediaAnalyzer.analyze(file) ?: return@getOrPut null
-          analyzedMetadata[id] = metaData
+          analyzed = metaData
           Chapter(
             id = id,
             duration = metaData.duration,
@@ -44,21 +53,36 @@ internal class ChapterParser(
           )
         }
         if (chapter != null) {
-          result.add(chapter)
+          chapter to analyzed
+        } else {
+          null
         }
-      } else if (file.isDirectory) {
-        file.children
-          .forEach {
-            parseChapters(it)
-          }
+      }
+    }.awaitAll().filterNotNull()
+
+    val chapters = parsedResults.map { it.first }.sorted()
+    val metadataMap = parsedResults.mapNotNull { (chapter, metadata) ->
+      if (metadata != null) chapter.id to metadata else null
+    }.toMap()
+
+    ChapterParseResult(
+      chapters = chapters,
+      firstChapterMetadata = chapters.firstOrNull()?.let { metadataMap[it.id] },
+    )
+  }
+
+  private fun collectAudioFiles(file: CachedDocumentFile): List<CachedDocumentFile> {
+    if (file.isAudioFile()) return listOf(file)
+    if (!file.isDirectory) return emptyList()
+    val result = mutableListOf<CachedDocumentFile>()
+    fun walk(f: CachedDocumentFile) {
+      if (f.isAudioFile()) {
+        result.add(f)
+      } else if (f.isDirectory) {
+        f.children.forEach { walk(it) }
       }
     }
-
-    parseChapters(file = documentFile)
-    val chapters = result.sorted()
-    return ChapterParseResult(
-      chapters = chapters,
-      firstChapterMetadata = chapters.firstOrNull()?.let { analyzedMetadata[it.id] },
-    )
+    walk(file)
+    return result
   }
 }

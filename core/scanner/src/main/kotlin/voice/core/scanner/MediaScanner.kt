@@ -7,27 +7,38 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import voice.core.data.BookId
-import voice.core.data.audioFileCount
+import voice.core.data.ChapterId
 import voice.core.data.isAudioFile
 import voice.core.data.repo.BookContentRepo
+import voice.core.data.repo.ChapterRepo
 import voice.core.documentfile.CachedDocumentFile
-import voice.core.documentfile.walk
 import voice.core.logging.api.Logger
+
+internal data class DiscoveredBook(
+  val bookFolder: CachedDocumentFile,
+  val audioFiles: List<CachedDocumentFile>,
+)
 
 @Inject
 internal class MediaScanner(
   private val contentRepo: BookContentRepo,
+  private val chapterRepo: ChapterRepo,
   private val chapterParser: ChapterParser,
   private val bookParser: BookParser,
   private val deviceHasPermissionBug: DeviceHasStoragePermissionBug,
 ) {
 
   suspend fun performScan(folders: List<CachedDocumentFile>) {
-    val files = folders.flatMap { findBookFolders(it) }.distinctBy { it.uri }
+    val discoveredBooks = folders
+      .flatMap { discoverBooks(it) }
+      .distinctBy { it.bookFolder.uri }
 
-    contentRepo.setAllInactiveExcept(files.map { BookId(it.uri) })
+    contentRepo.setAllInactiveExcept(discoveredBooks.map { BookId(it.bookFolder.uri) })
 
-    val probeFile = files.findProbeFile()
+    val probeFile = discoveredBooks.asSequence()
+      .flatMap { it.audioFiles }
+      .firstOrNull { it.uri.authority == "com.android.externalstorage.documents" }
+
     if (probeFile != null) {
       if (deviceHasPermissionBug.checkForBugAndSet(probeFile)) {
         Logger.w("Device has permission bug, aborting scan! Probed $probeFile")
@@ -35,14 +46,19 @@ internal class MediaScanner(
       }
     }
 
+    val allChapterIds = discoveredBooks.flatMap { book ->
+      book.audioFiles.map { ChapterId(it.uri) }
+    }
+    chapterRepo.warmup(allChapterIds)
+
     val semaphore = Semaphore(4)
     coroutineScope {
-      files
-        .sortedByDescending { it.audioFileCount() }
-        .map { file ->
+      discoveredBooks
+        .sortedByDescending { it.audioFiles.size }
+        .map { discoveredBook ->
           async {
             semaphore.withPermit {
-              scan(file)
+              scan(discoveredBook)
             }
           }
         }
@@ -50,25 +66,27 @@ internal class MediaScanner(
     }
   }
 
-  private fun findBookFolders(file: CachedDocumentFile): List<CachedDocumentFile> {
-    if (file.isFile) return listOf(file)
-    val subFolders = file.children.filter { it.isDirectory }
+  private fun discoverBooks(file: CachedDocumentFile): List<DiscoveredBook> {
+    if (file.isFile) {
+      return if (file.isAudioFile()) {
+        listOf(DiscoveredBook(bookFolder = file, audioFiles = listOf(file)))
+      } else {
+        emptyList()
+      }
+    }
+    val children = file.children
+    val subFolders = children.filter { it.isDirectory }
     return if (subFolders.isEmpty()) {
-      listOf(file)
+      val audioFiles = children.filter { it.isAudioFile() }
+      listOf(DiscoveredBook(bookFolder = file, audioFiles = audioFiles))
     } else {
-      subFolders.flatMap { findBookFolders(it) }
+      subFolders.flatMap { discoverBooks(it) }
     }
   }
 
-  private fun List<CachedDocumentFile>.findProbeFile(): CachedDocumentFile? {
-    return asSequence().flatMap { it.walk() }
-      .firstOrNull { child ->
-        child.isAudioFile() && child.uri.authority == "com.android.externalstorage.documents"
-      }
-  }
-
-  private suspend fun scan(file: CachedDocumentFile) {
-    val parseResult = chapterParser.parse(file)
+  private suspend fun scan(discoveredBook: DiscoveredBook) {
+    val (file, audioFiles) = discoveredBook
+    val parseResult = chapterParser.parse(file, audioFiles)
     val chapters = parseResult.chapters
     if (chapters.isEmpty()) return
 
@@ -90,3 +108,4 @@ internal class MediaScanner(
     }
   }
 }
+

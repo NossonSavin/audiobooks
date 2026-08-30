@@ -181,6 +181,35 @@ class MediaScannerTest {
     )
   }
 
+  @Test
+  fun multiChapterParallelScan() = test {
+    val folder = folder("large_book")
+    val chapters = (1..10).map { i ->
+      audioFile(parent = folder, "$i.mp3")
+    }
+
+    scan(folder)
+
+    assertBookContents(
+      BookContentView(folder, chapters = chapters),
+    )
+    assertEquals(expected = 10, actual = analyzeCalls)
+  }
+
+  @Test
+  fun cachedChaptersSkipAnalysis() = test {
+    val folder = folder("book")
+    audioFile(parent = folder, "1.mp3")
+    audioFile(parent = folder, "2.mp3")
+
+    scan(folder)
+    assertEquals(expected = 2, actual = analyzeCalls)
+
+    // Second scan should use warmed-up cache without re-analyzing
+    scan(folder)
+    assertEquals(expected = 2, actual = analyzeCalls)
+  }
+
   private fun test(test: suspend TestEnvironment.() -> Unit) {
     runTest {
       TestEnvironment().use { test(it) }
@@ -198,6 +227,7 @@ class MediaScannerTest {
     var analyzeCalls = 0
     private val scanner = MediaScanner(
       contentRepo = bookContentRepo,
+      chapterRepo = chapterRepo,
       chapterParser = ChapterParser(
         chapterRepo = chapterRepo,
         mediaAnalyzer = mediaAnalyzer,
