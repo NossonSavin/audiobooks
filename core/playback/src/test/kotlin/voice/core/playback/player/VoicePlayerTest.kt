@@ -108,6 +108,7 @@ class VoicePlayerTest {
     seekTimeStore = seekTimeStore,
     autoRewindAmountStore = autoRewindAmountStore,
     defaultPlaybackSpeedStore = defaultPlaybackSpeedStore,
+    hideCoverFromSystemStore = hideCoverFromSystemStore,
     scope = scope,
     mediaItemProvider = mediaItemProvider,
     volumeGain = mockk(relaxed = true),

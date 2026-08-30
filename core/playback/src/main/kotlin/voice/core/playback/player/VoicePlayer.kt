@@ -27,6 +27,8 @@ import voice.core.playback.session.MediaId
 import voice.core.playback.session.MediaItemProvider
 import voice.core.playback.session.playbackItemForPosition
 import voice.core.playback.session.playbackItems
+import androidx.media3.common.MediaMetadata
+import voice.core.data.store.HideCoverFromSystemStore
 import voice.core.playback.session.positionInMediaItem
 import voice.core.playback.session.toMediaIdOrNull
 import voice.core.sleeptimer.SleepTimer
@@ -49,12 +51,40 @@ class VoicePlayer(
   private val autoRewindAmountStore: DataStore<Int>,
   @DefaultPlaybackSpeedStore
   private val defaultPlaybackSpeedStore: DataStore<Float>,
+  @HideCoverFromSystemStore
+  private val hideCoverFromSystemStore: DataStore<Boolean>,
   private val mediaItemProvider: MediaItemProvider,
   private val scope: CoroutineScope,
   private val volumeGain: VolumeGain,
   private val sleepTimer: SleepTimer,
   private val analytics: Analytics,
 ) : ForwardingPlayer(player) {
+
+  override fun getMediaMetadata(): MediaMetadata {
+    val metadata = super.getMediaMetadata()
+    val hide = runBlocking { hideCoverFromSystemStore.data.first() }
+    return if (hide) {
+      metadata.buildUpon()
+        .setArtworkUri(null)
+        .setArtworkData(null, null)
+        .build()
+    } else {
+      metadata
+    }
+  }
+
+  override fun getPlaylistMetadata(): MediaMetadata {
+    val metadata = super.getPlaylistMetadata()
+    val hide = runBlocking { hideCoverFromSystemStore.data.first() }
+    return if (hide) {
+      metadata.buildUpon()
+        .setArtworkUri(null)
+        .setArtworkData(null, null)
+        .build()
+    } else {
+      metadata
+    }
+  }
 
   private val endOfChapterSleepTimerListener = object : Player.Listener {
     override fun onPositionDiscontinuity(
