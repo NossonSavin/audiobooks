@@ -8,8 +8,64 @@ import dev.zacsweers.metro.Inject
 import voice.core.data.MarkData
 import voice.core.logging.api.Logger
 
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+
 @Inject
 internal class ChapterTrackProcessor {
+
+  operator fun invoke(
+    channel: FileChannel,
+    trackId: Int,
+    output: Mp4ChpaterExtractorOutput,
+  ): List<MarkData> {
+    val chunkOffsets = output.chunkOffsets.getOrNull(trackId - 1)
+    if (chunkOffsets == null) {
+      Logger.w("No chunk offsets found for track ID $trackId")
+      return emptyList()
+    }
+    val timeScale = output.timeScales.getOrNull(trackId - 1)
+    if (timeScale == null) {
+      Logger.w("No time scale found for track ID $trackId")
+      return emptyList()
+    }
+    val durations = output.durations.getOrNull(trackId - 1)
+    if (durations == null) {
+      Logger.w("No durations found for track ID $trackId")
+      return emptyList()
+    }
+    val stscEntries = output.stscEntries.getOrNull(trackId - 1)
+    if (stscEntries == null) {
+      Logger.w("No stsc entries found for track ID $trackId")
+      return emptyList()
+    }
+
+    val numberOfChaptersToProcess = chunkOffsets.size
+    val headerBuffer = ByteBuffer.allocate(2)
+
+    val names = chunkOffsets.map { offset ->
+      channel.position(offset)
+      headerBuffer.clear()
+      channel.read(headerBuffer)
+      headerBuffer.flip()
+      val textLength = if (headerBuffer.remaining() >= 2) headerBuffer.short.toInt() and 0xFFFF else 0
+      if (textLength > 0) {
+        val textBuf = ByteBuffer.allocate(textLength)
+        channel.read(textBuf)
+        textBuf.flip()
+        String(textBuf.array(), 0, textLength, Charsets.UTF_8)
+      } else {
+        ""
+      }
+    }
+
+    if (names.size != numberOfChaptersToProcess) {
+      Logger.w("Mismatch in names size and chunk offsets size for track ID $trackId")
+      return emptyList()
+    }
+
+    return processChapters(names, numberOfChaptersToProcess, stscEntries, durations, timeScale)
+  }
 
   operator fun invoke(
     uri: Uri,
@@ -61,6 +117,17 @@ internal class ChapterTrackProcessor {
       Logger.w("Mismatch in names size and chunk offsets size for track ID $trackId")
       return emptyList()
     }
+
+    return processChapters(names, numberOfChaptersToProcess, stscEntries, durations, timeScale)
+  }
+
+  private fun processChapters(
+    names: List<String>,
+    numberOfChaptersToProcess: Int,
+    stscEntries: List<StscEntry>,
+    durations: List<SttsEntry>,
+    timeScale: Long,
+  ): List<MarkData> {
 
     var position = 0L
     var durationEntryIndex = 0
