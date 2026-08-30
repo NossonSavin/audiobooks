@@ -41,6 +41,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 
@@ -54,15 +55,19 @@ internal fun ListBooks(
   onPermissionBugCardClick: () -> Unit,
 ) {
   val listState = rememberLazyListState()
-  var hasScrolledToBook by rememberSaveable(currentBookId) { mutableStateOf(false) }
+  val targetIndex = remember(books, currentBookId, showPermissionBugCard) {
+    if (currentBookId != null) {
+      findItemIndex(books, currentBookId, showPermissionBugCard)
+    } else {
+      null
+    }
+  }
+  var lastScrolledIndex by rememberSaveable(currentBookId) { mutableStateOf<Int?>(null) }
 
-  LaunchedEffect(currentBookId, books.isNotEmpty()) {
-    if (currentBookId != null && books.isNotEmpty() && !hasScrolledToBook) {
-      val targetIndex = findItemIndex(books, currentBookId, showPermissionBugCard)
-      if (targetIndex != null) {
-        listState.scrollToItem(targetIndex)
-        hasScrolledToBook = true
-      }
+  LaunchedEffect(targetIndex) {
+    if (targetIndex != null && targetIndex != lastScrolledIndex) {
+      listState.scrollToItem(targetIndex)
+      lastScrolledIndex = targetIndex
     }
   }
 

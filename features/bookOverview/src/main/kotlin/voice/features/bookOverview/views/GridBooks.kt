@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import voice.core.ui.R as UiR
@@ -50,15 +51,19 @@ internal fun GridBooks(
   onPermissionBugCardClick: () -> Unit,
 ) {
   val gridState = rememberLazyGridState()
-  var hasScrolledToBook by rememberSaveable(currentBookId) { mutableStateOf(false) }
+  val targetIndex = remember(books, currentBookId, showPermissionBugCard) {
+    if (currentBookId != null) {
+      findGridItemIndex(books, currentBookId, showPermissionBugCard)
+    } else {
+      null
+    }
+  }
+  var lastScrolledIndex by rememberSaveable(currentBookId) { mutableStateOf<Int?>(null) }
 
-  LaunchedEffect(currentBookId, books.isNotEmpty()) {
-    if (currentBookId != null && books.isNotEmpty() && !hasScrolledToBook) {
-      val targetIndex = findGridItemIndex(books, currentBookId, showPermissionBugCard)
-      if (targetIndex != null) {
-        gridState.scrollToItem(targetIndex)
-        hasScrolledToBook = true
-      }
+  LaunchedEffect(targetIndex) {
+    if (targetIndex != null && targetIndex != lastScrolledIndex) {
+      gridState.scrollToItem(targetIndex)
+      lastScrolledIndex = targetIndex
     }
   }
 
