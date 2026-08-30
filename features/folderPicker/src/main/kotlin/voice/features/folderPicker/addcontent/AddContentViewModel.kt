@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import voice.core.data.folders.AudiobookFolders
 import voice.core.data.folders.FolderType
 import voice.core.data.store.OnboardingCompletedStore
+import voice.core.scanner.MediaScanTrigger
 import voice.navigation.Destination
 import voice.navigation.Navigator
 import voice.navigation.Origin
@@ -18,6 +19,7 @@ import voice.navigation.Origin
 class AddContentViewModel(
   private val audiobookFolders: AudiobookFolders,
   private val navigator: Navigator,
+  private val mediaScanner: MediaScanTrigger,
   @OnboardingCompletedStore
   private val onboardingCompletedStore: DataStore<Boolean>,
   @Assisted
@@ -31,6 +33,7 @@ class AddContentViewModel(
       uri = uri,
       type = FolderType.Folder,
     )
+    mediaScanner.triggerScan(restartIfScanning = true)
     when (origin) {
       Origin.Default -> {
         navigator.setRoot(Destination.BookOverview)
