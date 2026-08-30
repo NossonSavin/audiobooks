@@ -45,7 +45,10 @@ class AddContentViewModel(
   }
 
   internal fun back() {
-    navigator.goBack()
+    when (origin) {
+      Origin.Default -> navigator.goBack()
+      Origin.Onboarding -> navigator.setRoot(Destination.BookOverview)
+    }
   }
 
   @AssistedFactory

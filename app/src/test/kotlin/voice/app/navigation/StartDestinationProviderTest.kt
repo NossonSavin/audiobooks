@@ -12,6 +12,7 @@ import voice.core.data.folders.AudiobookFolders
 import voice.core.data.repo.BookRepository
 import voice.core.playback.PlayerController
 import voice.navigation.Destination
+import voice.navigation.Origin
 import kotlin.test.assertEquals
 
 class StartDestinationProviderTest {
@@ -71,6 +72,6 @@ class StartDestinationProviderTest {
 
     val result = provider(mockk(relaxed = true))
 
-    assertEquals(listOf(Destination.OnboardingExplanation), result)
+    assertEquals(listOf(Destination.AddContent(origin = Origin.Onboarding)), result)
   }
 }

@@ -13,6 +13,7 @@ import voice.core.data.store.CurrentBookStore
 import voice.core.data.store.OnboardingCompletedStore
 import voice.core.playback.PlayerController
 import voice.navigation.Destination
+import voice.navigation.Origin
 
 @Inject
 class StartDestinationProvider(
@@ -28,7 +29,7 @@ class StartDestinationProvider(
   operator fun invoke(intent: Intent): List<Destination.Compose> {
     val showOnboarding = runBlocking { showOnboarding() }
     if (showOnboarding) {
-      return listOf(Destination.OnboardingExplanation)
+      return listOf(Destination.AddContent(origin = Origin.Onboarding))
     }
 
     val goToBook = intent.getBooleanExtra(MainActivity.Companion.NI_GO_TO_BOOK, false)

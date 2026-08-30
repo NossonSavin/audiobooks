@@ -77,15 +77,15 @@
         <item quantity="other">%d seconds</item>
     </plurals>
     <!-- Title for the folder picker during normal app use. -->
-    <string name="folder.add.title.default">Add your Audiobook(s)</string>
+    <string name="folder.add.title.default">Add Audiobooks</string>
     <!-- Title for the folder picker when adding the first audiobook during onboarding. -->
-    <string name="folder.add.title.onboarding">Add Your First Audiobook</string>
+    <string name="folder.add.title.onboarding">Select Audiobook Folder</string>
     <!-- Button label for adding a single audio file as a book. -->
     <string name="folder.add.type.file">File</string>
     <!-- Button label for adding a folder of audiobooks. -->
-    <string name="folder.add.type.folder">Folder</string>
+    <string name="folder.add.type.folder">Select Folder</string>
     <!-- Subtitle explaining that Voice finds audiobooks automatically in folders. -->
-    <string name="folder.add.type.subtitle">Voice will automatically find all audiobooks in the folder you select.</string>
+    <string name="folder.add.type.subtitle">Select the root folder where your audiobooks are located.\n\nVoice identifies each audiobook by its subfolder: all audio files inside the same subfolder are grouped as one audiobook, so each book should be in its own folder.</string>
     <!-- Title for folder mode where subfolders are authors and nested folders are books. -->
     <string name="folder.mode.author.title">Author-Book Mode: Subfolders are authors, sub-subfolders are books.</string>
     <!-- Title for folder mode where top-level subfolders are books. -->
