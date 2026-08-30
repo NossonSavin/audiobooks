@@ -223,6 +223,7 @@ internal fun BookOverview(
         BookOverviewLayoutMode.List -> {
           ListBooks(
             books = viewState.books,
+            currentBookId = viewState.currentBookId,
             onBookClick = onBookClick,
             onBookLongClick = onBookLongClick,
             showPermissionBugCard = viewState.showStoragePermissionBugCard,
@@ -232,6 +233,7 @@ internal fun BookOverview(
         BookOverviewLayoutMode.Grid -> {
           GridBooks(
             books = viewState.books,
+            currentBookId = viewState.currentBookId,
             onBookClick = onBookClick,
             onBookLongClick = onBookLongClick,
             showPermissionBugCard = viewState.showStoragePermissionBugCard,

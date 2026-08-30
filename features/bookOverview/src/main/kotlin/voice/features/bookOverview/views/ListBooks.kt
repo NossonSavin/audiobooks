@@ -37,15 +37,37 @@ import voice.features.bookOverview.overview.BookOverviewCategory
 import voice.features.bookOverview.overview.BookOverviewItemViewState
 import voice.core.ui.R as UiR
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+
 @Composable
 internal fun ListBooks(
   books: Map<BookOverviewCategory, Map<BookId, State<BookOverviewItemViewState>>>,
+  currentBookId: BookId?,
   onBookClick: (BookId) -> Unit,
   onBookLongClick: (BookId) -> Unit,
   showPermissionBugCard: Boolean,
   onPermissionBugCardClick: () -> Unit,
 ) {
+  val listState = rememberLazyListState()
+  var hasScrolledToBook by rememberSaveable(currentBookId) { mutableStateOf(false) }
+
+  LaunchedEffect(currentBookId, books.isNotEmpty()) {
+    if (currentBookId != null && books.isNotEmpty() && !hasScrolledToBook) {
+      val targetIndex = findItemIndex(books, currentBookId, showPermissionBugCard)
+      if (targetIndex != null) {
+        listState.scrollToItem(targetIndex)
+        hasScrolledToBook = true
+      }
+    }
+  }
+
   LazyColumn(
+    state = listState,
     verticalArrangement = Arrangement.spacedBy(8.dp),
     contentPadding = PaddingValues(top = 24.dp, start = 8.dp, end = 8.dp, bottom = 16.dp),
   ) {
@@ -84,6 +106,29 @@ internal fun ListBooks(
       }
     }
   }
+}
+
+private fun findItemIndex(
+  books: Map<BookOverviewCategory, Map<BookId, *>>,
+  targetBookId: BookId,
+  showPermissionBugCard: Boolean,
+): Int? {
+  var index = 0
+  if (showPermissionBugCard) {
+    index++
+  }
+  for ((_, categoryBooks) in books) {
+    if (categoryBooks.isEmpty()) continue
+    index++
+    for (bookId in categoryBooks.keys) {
+      if (bookId == targetBookId) {
+        return index
+      }
+      index++
+    }
+    index++
+  }
+  return null
 }
 
 @Composable

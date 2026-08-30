@@ -139,6 +139,7 @@ class BookOverviewViewModel(
 
     return BookOverviewViewState(
       layoutMode = layoutMode,
+      currentBookId = currentBookId,
       books = books
         .groupBy {
           it.category
@@ -258,6 +259,9 @@ class BookOverviewViewModel(
   }
 
   fun onBookClick(id: BookId) {
+    scope.launch {
+      currentBookStoreDataStore.updateData { id }
+    }
     navigator.goTo(Destination.Playback(id))
   }
 
@@ -291,6 +295,9 @@ class BookOverviewViewModel(
       }
     }
     searchActive = false
+    scope.launch {
+      currentBookStoreDataStore.updateData { id }
+    }
     navigator.goTo(Destination.Playback(id))
   }
 

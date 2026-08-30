@@ -32,18 +32,39 @@ import voice.core.ui.sharedCoverElementModifier
 import voice.features.bookOverview.overview.BookOverviewCategory
 import voice.features.bookOverview.overview.BookOverviewItemViewState
 import kotlin.math.roundToInt
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import voice.core.ui.R as UiR
 
 @Composable
 internal fun GridBooks(
   books: Map<BookOverviewCategory, Map<BookId, State<BookOverviewItemViewState>>>,
+  currentBookId: BookId?,
   onBookClick: (BookId) -> Unit,
   onBookLongClick: (BookId) -> Unit,
   showPermissionBugCard: Boolean,
   onPermissionBugCardClick: () -> Unit,
 ) {
+  val gridState = rememberLazyGridState()
+  var hasScrolledToBook by rememberSaveable(currentBookId) { mutableStateOf(false) }
+
+  LaunchedEffect(currentBookId, books.isNotEmpty()) {
+    if (currentBookId != null && books.isNotEmpty() && !hasScrolledToBook) {
+      val targetIndex = findGridItemIndex(books, currentBookId, showPermissionBugCard)
+      if (targetIndex != null) {
+        gridState.scrollToItem(targetIndex)
+        hasScrolledToBook = true
+      }
+    }
+  }
+
   val cellCount = gridColumnCount()
   LazyVerticalGrid(
+    state = gridState,
     columns = GridCells.Fixed(cellCount),
     verticalArrangement = Arrangement.spacedBy(8.dp),
     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -86,6 +107,29 @@ internal fun GridBooks(
       }
     }
   }
+}
+
+private fun findGridItemIndex(
+  books: Map<BookOverviewCategory, Map<BookId, *>>,
+  targetBookId: BookId,
+  showPermissionBugCard: Boolean,
+): Int? {
+  var index = 0
+  if (showPermissionBugCard) {
+    index++
+  }
+  for ((_, categoryBooks) in books) {
+    if (categoryBooks.isEmpty()) continue
+    index++
+    for (bookId in categoryBooks.keys) {
+      if (bookId == targetBookId) {
+        return index
+      }
+      index++
+    }
+    index++
+  }
+  return null
 }
 
 @Composable
