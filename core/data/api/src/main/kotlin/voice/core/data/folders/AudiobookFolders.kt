@@ -7,12 +7,12 @@ import voice.core.documentfile.CachedDocumentFile
 public interface AudiobookFolders {
   public fun all(): Flow<List<DocumentFileWithUri>>
 
-  public fun add(
+  public suspend fun add(
     uri: Uri,
     type: FolderType,
   )
 
-  public fun remove(
+  public suspend fun remove(
     uri: Uri,
     type: FolderType,
   )

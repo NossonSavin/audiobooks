@@ -29,21 +29,16 @@ class AddContentViewModel(
   private val scope = MainScope()
 
   internal fun add(uri: Uri) {
-    audiobookFolders.add(
-      uri = uri,
-      type = FolderType.Folder,
-    )
-    mediaScanner.triggerScan(restartIfScanning = true)
-    when (origin) {
-      Origin.Default -> {
-        navigator.setRoot(Destination.BookOverview)
+    scope.launch {
+      audiobookFolders.add(
+        uri = uri,
+        type = FolderType.Folder,
+      )
+      if (origin == Origin.Onboarding) {
+        onboardingCompletedStore.updateData { true }
       }
-      Origin.Onboarding -> {
-        scope.launch {
-          onboardingCompletedStore.updateData { true }
-        }
-        navigator.setRoot(Destination.BookOverview)
-      }
+      mediaScanner.triggerScan(restartIfScanning = true)
+      navigator.setRoot(Destination.BookOverview)
     }
   }
 

@@ -262,11 +262,11 @@ class BackupManagerTest {
 
     override fun all(): Flow<List<DocumentFileWithUri>> = flowOf(emptyList())
 
-    override fun add(uri: Uri, type: FolderType) {
+    override suspend fun add(uri: Uri, type: FolderType) {
       added.add(uri to type)
     }
 
-    override fun remove(uri: Uri, type: FolderType) {
+    override suspend fun remove(uri: Uri, type: FolderType) {
       added.removeAll { it.first == uri && it.second == type }
     }
 

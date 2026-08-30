@@ -7,8 +7,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import voice.core.data.folders.AudiobookFolders
 import voice.core.data.folders.FolderType
@@ -69,8 +71,12 @@ class FolderPickerViewModel(
     )
   }
 
+  private val scope = kotlinx.coroutines.MainScope()
+
   fun removeFolder(item: FolderPickerViewState.Item) {
-    audiobookFolders.remove(item.id, item.folderType)
+    scope.launch {
+      audiobookFolders.remove(item.id, item.folderType)
+    }
   }
 
   private companion object {
