@@ -28,7 +28,7 @@ class StartDestinationProvider(
   operator fun invoke(intent: Intent): List<Destination.Compose> {
     val showOnboarding = runBlocking { showOnboarding() }
     if (showOnboarding) {
-      return listOf(Destination.OnboardingWelcome)
+      return listOf(Destination.OnboardingExplanation)
     }
 
     val goToBook = intent.getBooleanExtra(MainActivity.Companion.NI_GO_TO_BOOK, false)

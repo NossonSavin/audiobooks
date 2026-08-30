@@ -71,6 +71,6 @@ class StartDestinationProviderTest {
 
     val result = provider(mockk(relaxed = true))
 
-    assertEquals(listOf(Destination.OnboardingWelcome), result)
+    assertEquals(listOf(Destination.OnboardingExplanation), result)
   }
 }

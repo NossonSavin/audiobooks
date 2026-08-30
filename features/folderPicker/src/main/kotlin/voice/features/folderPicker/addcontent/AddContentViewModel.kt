@@ -1,13 +1,16 @@
 package voice.features.folderPicker.addcontent
 
 import android.net.Uri
+import androidx.datastore.core.DataStore
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import voice.core.data.folders.AudiobookFolders
 import voice.core.data.folders.FolderType
+import voice.core.data.store.OnboardingCompletedStore
 import voice.navigation.Destination
-import voice.navigation.Destination.OnboardingCompletion
 import voice.navigation.Navigator
 import voice.navigation.Origin
 
@@ -15,9 +18,13 @@ import voice.navigation.Origin
 class AddContentViewModel(
   private val audiobookFolders: AudiobookFolders,
   private val navigator: Navigator,
+  @OnboardingCompletedStore
+  private val onboardingCompletedStore: DataStore<Boolean>,
   @Assisted
   private val origin: Origin,
 ) {
+
+  private val scope = MainScope()
 
   internal fun add(uri: Uri) {
     audiobookFolders.add(
@@ -29,7 +36,10 @@ class AddContentViewModel(
         navigator.setRoot(Destination.BookOverview)
       }
       Origin.Onboarding -> {
-        navigator.goTo(OnboardingCompletion)
+        scope.launch {
+          onboardingCompletedStore.updateData { true }
+        }
+        navigator.setRoot(Destination.BookOverview)
       }
     }
   }

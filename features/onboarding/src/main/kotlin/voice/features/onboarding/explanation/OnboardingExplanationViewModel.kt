@@ -29,6 +29,6 @@ class OnboardingExplanationViewModel(
   }
 
   fun onClose() {
-    navigator.goBack()
+    navigator.setRoot(Destination.BookOverview)
   }
 }
