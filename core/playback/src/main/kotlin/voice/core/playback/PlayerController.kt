@@ -132,13 +132,10 @@ class PlayerController(
   fun refreshMediaItem() = executeAfterPrepare { controller ->
     val bookId = currentBookStoreId.data.first() ?: return@executeAfterPrepare
     val book = bookRepository.get(bookId) ?: return@executeAfterPrepare
-    val hideCoverFromSystem = hideCoverFromSystemStore.data.first()
-
-    val currentMediaItem = controller.currentMediaItem
-    if (currentMediaItem != null) {
-      val newItem = mediaItemProvider.mediaItem(book, hideCoverFromSystem)
-      controller.replaceMediaItem(controller.currentMediaItemIndex, newItem)
-    }
+    val playbackItems = mediaItemProvider.playbackItems(book)
+    val currentIndex = controller.currentMediaItemIndex
+    val currentPosition = controller.currentPosition
+    controller.setMediaItems(playbackItems, currentIndex, currentPosition)
   }
 
   fun fastForward() {
