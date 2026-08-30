@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import voice.core.data.Book
 import voice.core.data.toUri
 import voice.core.logging.api.Logger
+import voice.core.documentfile.CachedDocumentFileFactory
 import java.io.File
 import java.io.IOException
 
@@ -22,10 +23,12 @@ internal class CoverScanner(
   private val context: Context,
   private val coverSaver: CoverSaver,
   private val coverExtractor: CoverExtractor,
+  private val documentFileFactory: CachedDocumentFileFactory,
 ) {
 
   suspend fun scan(books: List<Book>) = coroutineScope {
-    val semaphore = Semaphore(3)
+    val concurrency = Runtime.getRuntime().availableProcessors().coerceIn(6, 12)
+    val semaphore = Semaphore(concurrency)
     books.map { book ->
       async {
         semaphore.withPermit {
@@ -52,8 +55,8 @@ internal class CoverScanner(
 
   private suspend fun findAndSaveCoverFromDisc(book: Book): Boolean = withContext(Dispatchers.IO) {
     val documentFile = try {
-      DocumentFile.fromTreeUri(context, book.id.toUri())
-    } catch (_: IllegalArgumentException) {
+      documentFileFactory.create(book.id.toUri())
+    } catch (_: Exception) {
       null
     } ?: return@withContext false
 
@@ -61,8 +64,10 @@ internal class CoverScanner(
       return@withContext false
     }
 
-    documentFile.listFiles().forEach { child ->
-      if (child.isFile && child.canRead() && child.type?.startsWith("image/") == true) {
+    documentFile.children.forEach { child ->
+      val name = child.name?.lowercase() ?: ""
+      val isImage = name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") || name.endsWith(".webp")
+      if (child.isFile && isImage) {
         val coverFile = coverSaver.newBookCoverFile()
         val worked = try {
           val bytesCopied = context.contentResolver.openInputStream(child.uri)?.use { input ->
