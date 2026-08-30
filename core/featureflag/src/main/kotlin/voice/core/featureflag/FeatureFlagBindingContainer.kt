@@ -58,6 +58,7 @@ interface FeatureFlagBindingContainer {
   fun experimentalPlaybackPersistenceQualifier(factory: FeatureFlagFactory): FeatureFlag<Boolean> {
     return factory.boolean(
       key = "experimental_playback_persistence",
+      defaultValue = true,
       description = "Uses the experimental playback persistence implementation.",
     )
   }

@@ -1,6 +1,7 @@
 package voice.core.scanner
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import androidx.documentfile.provider.DocumentFile
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +14,7 @@ import kotlinx.coroutines.withContext
 import voice.core.data.Book
 import voice.core.data.toUri
 import voice.core.logging.api.Logger
+import java.io.File
 import java.io.IOException
 
 @Inject
@@ -36,7 +38,7 @@ internal class CoverScanner(
 
   private suspend fun findCoverForBook(book: Book) {
     val coverFile = book.content.cover
-    if (coverFile != null && coverFile.exists()) {
+    if (coverFile != null && coverFile.exists() && coverFile.length() > 0L && isValidImageFile(coverFile)) {
       return
     }
 
@@ -63,12 +65,12 @@ internal class CoverScanner(
       if (child.isFile && child.canRead() && child.type?.startsWith("image/") == true) {
         val coverFile = coverSaver.newBookCoverFile()
         val worked = try {
-          context.contentResolver.openInputStream(child.uri)?.use { input ->
+          val bytesCopied = context.contentResolver.openInputStream(child.uri)?.use { input ->
             coverFile.outputStream().use { output ->
               input.copyTo(output)
             }
-          }
-          true
+          } ?: 0L
+          bytesCopied > 0L && isValidImageFile(coverFile)
         } catch (e: IOException) {
           Logger.w(e, "Error while copying the cover from ${child.uri}")
           false
@@ -80,6 +82,8 @@ internal class CoverScanner(
         if (worked) {
           coverSaver.setBookCover(coverFile, book.id)
           return@withContext true
+        } else {
+          coverFile.delete()
         }
       }
     }
@@ -95,10 +99,20 @@ internal class CoverScanner(
           input = chapter.id.toUri(),
           outputFile = coverFile,
         )
-        if (success && coverFile.exists() && coverFile.length() > 0) {
+        if (success && coverFile.exists() && coverFile.length() > 0L && isValidImageFile(coverFile)) {
           coverSaver.setBookCover(coverFile, bookId = book.id)
           return
+        } else {
+          coverFile.delete()
         }
       }
+    coverFile.delete()
+  }
+
+  private fun isValidImageFile(file: File): Boolean {
+    if (!file.isFile || file.length() <= 0L) return false
+    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(file.absolutePath, options)
+    return options.outWidth > 0 && options.outHeight > 0
   }
 }

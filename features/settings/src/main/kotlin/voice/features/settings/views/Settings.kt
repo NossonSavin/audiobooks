@@ -1,5 +1,7 @@
 package voice.features.settings.views
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
@@ -22,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import java.time.LocalDate
 import androidx.navigation3.runtime.NavEntry
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesTo
@@ -56,6 +59,24 @@ private fun Settings(
   listener: SettingsListener,
   snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
+  val exportBackupLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.CreateDocument("application/json"),
+    onResult = { uri ->
+      if (uri != null) {
+        listener.onExportBackup(uri)
+      }
+    },
+  )
+
+  val importBackupLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.OpenDocument(),
+    onResult = { uri ->
+      if (uri != null) {
+        listener.onImportBackup(uri)
+      }
+    },
+  )
+
   val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
   Scaffold(
     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -105,6 +126,45 @@ private fun Settings(
           },
           supportingContent = {
             Text(stringResource(StringsR.string.settings_library_folders_summary))
+          },
+        )
+      }
+      item {
+        ListItem(
+          modifier = Modifier.clickable {
+            val dateStr = LocalDate.now().toString()
+            exportBackupLauncher.launch("voice_backup_$dateStr.json")
+          },
+          leadingContent = {
+            Icon(
+              imageVector = VoiceIcons.Download,
+              contentDescription = stringResource(StringsR.string.settings_backup_export_title),
+            )
+          },
+          headlineContent = {
+            Text(stringResource(StringsR.string.settings_backup_export_title))
+          },
+          supportingContent = {
+            Text(stringResource(StringsR.string.settings_backup_export_summary))
+          },
+        )
+      }
+      item {
+        ListItem(
+          modifier = Modifier.clickable {
+            importBackupLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
+          },
+          leadingContent = {
+            Icon(
+              imageVector = VoiceIcons.History,
+              contentDescription = stringResource(StringsR.string.settings_backup_import_title),
+            )
+          },
+          headlineContent = {
+            Text(stringResource(StringsR.string.settings_backup_import_title))
+          },
+          supportingContent = {
+            Text(stringResource(StringsR.string.settings_backup_import_summary))
           },
         )
       }
@@ -387,6 +447,9 @@ fun Settings() {
       when (viewEffect) {
         SettingsViewEffect.DeveloperMenuUnlocked -> {
           snackbarHostState.showSnackbar(currentDeveloperMenuUnlockedMessage.value)
+        }
+        is SettingsViewEffect.ShowSnackbar -> {
+          snackbarHostState.showSnackbar(viewEffect.message)
         }
       }
     }

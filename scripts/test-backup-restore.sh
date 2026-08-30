@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-PACKAGE=de.ph1b.audiobook.debug
+PACKAGE=audiobook.player.debug
 
 # Initialize and create a backup
 adb shell bmgr enable true

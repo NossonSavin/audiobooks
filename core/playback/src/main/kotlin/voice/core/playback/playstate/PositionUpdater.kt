@@ -93,8 +93,11 @@ class PositionUpdater(
     flushPosition()
   }
 
+  private var flushJob: Job? = null
+
   private fun flushPosition() {
-    scope.launch {
+    flushJob?.cancel()
+    flushJob = scope.launch {
       flushPositionNow()
     }
   }
@@ -126,5 +129,6 @@ class PositionUpdater(
   fun release() {
     player?.removeListener(this)
     updateJob?.cancel()
+    flushJob?.cancel()
   }
 }

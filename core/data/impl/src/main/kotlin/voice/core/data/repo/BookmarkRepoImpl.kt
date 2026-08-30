@@ -29,6 +29,14 @@ internal constructor(
     dao.addBookmark(bookmark)
   }
 
+  override suspend fun addAll(bookmarks: List<Bookmark>) {
+    dao.addAll(bookmarks)
+  }
+
+  override suspend fun all(): List<Bookmark> {
+    return dao.all()
+  }
+
   override suspend fun addBookmarkAtBookPosition(
     book: Book,
     title: String?,

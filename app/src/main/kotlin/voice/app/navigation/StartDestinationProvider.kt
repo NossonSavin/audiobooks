@@ -26,11 +26,8 @@ class StartDestinationProvider(
 ) {
 
   operator fun invoke(intent: Intent): List<Destination.Compose> {
-    val t0 = System.currentTimeMillis()
-    android.util.Log.i("VOICE_PERF", "[StartDestinationProvider] invoke started")
     val showOnboarding = runBlocking { showOnboarding() }
     if (showOnboarding) {
-      android.util.Log.i("VOICE_PERF", "[StartDestinationProvider] showOnboarding returned true (${System.currentTimeMillis() - t0}ms)")
       return listOf(Destination.OnboardingWelcome)
     }
 
@@ -38,7 +35,6 @@ class StartDestinationProvider(
     if (goToBook) {
       val bookId = runBlocking { currentBookStore.data.first() }
       if (bookId != null) {
-        android.util.Log.i("VOICE_PERF", "[StartDestinationProvider] goToBook with bookId=$bookId (${System.currentTimeMillis() - t0}ms)")
         return listOf(Destination.BookOverview, Destination.Playback(bookId))
       }
     }
@@ -46,7 +42,6 @@ class StartDestinationProvider(
     if (intent.action == "playCurrent") {
       val bookId = runBlocking { currentBookStore.data.first() }
       if (bookId != null) {
-        android.util.Log.i("VOICE_PERF", "[StartDestinationProvider] playCurrent with bookId=$bookId (${System.currentTimeMillis() - t0}ms)")
         playerController.playPause()
         return listOf(Destination.BookOverview, Destination.Playback(bookId))
       }
@@ -54,16 +49,12 @@ class StartDestinationProvider(
 
     val lastBookId = runBlocking { currentBookStore.data.first() }
     if (lastBookId != null) {
-      val tRepo = System.currentTimeMillis()
       val bookExists = runBlocking { bookRepository.get(lastBookId) != null }
-      android.util.Log.i("VOICE_PERF", "[StartDestinationProvider] bookRepository.get took ${System.currentTimeMillis() - tRepo}ms")
       if (bookExists) {
-        android.util.Log.i("VOICE_PERF", "[StartDestinationProvider] returning Playback($lastBookId) (Total=${System.currentTimeMillis() - t0}ms)")
         return listOf(Destination.BookOverview, Destination.Playback(lastBookId))
       }
     }
 
-    android.util.Log.i("VOICE_PERF", "[StartDestinationProvider] returning BookOverview (Total=${System.currentTimeMillis() - t0}ms)")
     return listOf(Destination.BookOverview)
   }
 

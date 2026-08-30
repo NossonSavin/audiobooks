@@ -46,9 +46,6 @@ internal fun MediaItem(
 
   if (imageUri != null) {
     metadataBuilder.setArtworkUri(imageUri)
-  } else {
-    // Setting artwork data to an empty byte array can help force hiding the artwork on some systems
-    metadataBuilder.setArtworkData(byteArrayOf(), MediaMetadata.PICTURE_TYPE_FRONT_COVER)
   }
 
   val metadata = metadataBuilder.build()

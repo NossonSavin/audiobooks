@@ -8,6 +8,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -25,6 +26,7 @@ import voice.core.playback.misc.VolumeGain
 import voice.core.playback.session.MediaId
 import voice.core.playback.session.MediaItemProvider
 import voice.core.playback.session.playbackItemForPosition
+import voice.core.playback.session.playbackItems
 import voice.core.playback.session.positionInMediaItem
 import voice.core.playback.session.toMediaIdOrNull
 import voice.core.sleeptimer.SleepTimer
@@ -81,26 +83,7 @@ class VoicePlayer(
 
   init {
     player.addListener(endOfChapterSleepTimerListener)
-    player.addListener(object : Player.Listener {
-      override fun onPlaybackStateChanged(playbackState: Int) {
-        val stateName = when (playbackState) {
-          Player.STATE_IDLE -> "STATE_IDLE"
-          Player.STATE_BUFFERING -> "STATE_BUFFERING"
-          Player.STATE_READY -> "STATE_READY"
-          Player.STATE_ENDED -> "STATE_ENDED"
-          else -> "UNKNOWN($playbackState)"
-        }
-        android.util.Log.i("VOICE_PERF", "[ExoPlayer] playbackState changed to $stateName (playWhenReady=${player.playWhenReady})")
-      }
-
-      override fun onIsPlayingChanged(isPlaying: Boolean) {
-        android.util.Log.i("VOICE_PERF", "[ExoPlayer] onIsPlayingChanged: isPlaying=$isPlaying (currentPosition=${player.currentPosition}ms)")
-      }
-
-      override fun onIsLoadingChanged(isLoading: Boolean) {
-        android.util.Log.i("VOICE_PERF", "[ExoPlayer] onIsLoadingChanged: isLoading=$isLoading")
-      }
-    })
+    // Listeners are initialized in PlaybackModule
   }
 
   fun forceSeekToNext() {
@@ -162,8 +145,11 @@ class VoicePlayer(
     seekForward()
   }
 
+  private var seekJob: Job? = null
+
   override fun seekBack() {
-    scope.launch {
+    seekJob?.cancel()
+    seekJob = scope.launch {
       seekBackBy(seekTimeStore.data.first().seconds)
     }
   }
@@ -206,7 +192,8 @@ class VoicePlayer(
   }
 
   override fun seekForward() {
-    scope.launch {
+    seekJob?.cancel()
+    seekJob = scope.launch {
       val skipAmount = seekTimeStore.data.first().seconds
 
       val currentPosition = player.currentPosition.takeUnless { it == C.TIME_UNSET }
@@ -230,12 +217,10 @@ class VoicePlayer(
   }
 
   override fun play() {
-    android.util.Log.i("VOICE_PERF", "[VoicePlayer] play() called")
     playWhenReady = true
   }
 
   override fun setPlayWhenReady(playWhenReady: Boolean) {
-    android.util.Log.i("VOICE_PERF", "[VoicePlayer] setPlayWhenReady($playWhenReady) called")
     Logger.d("setPlayWhenReady=$playWhenReady")
     analytics.event(if (playWhenReady) "play" else "pause")
 
@@ -256,7 +241,6 @@ class VoicePlayer(
   }
 
   override fun pause() {
-    android.util.Log.i("VOICE_PERF", "[VoicePlayer] pause() called")
     playWhenReady = false
   }
 
@@ -318,26 +302,15 @@ class VoicePlayer(
     setBook(first)
   }
 
-  private var currentLoadedBookId: BookId? = null
-
   private fun setBook(mediaItem: MediaItem) {
-    val t0 = System.currentTimeMillis()
-    android.util.Log.i("VOICE_PERF", "[VoicePlayer] setBook started for ${mediaItem.mediaId}")
+    Logger.v("setBook(${mediaItem.mediaId})")
     val mediaId = mediaItem.mediaId.toMediaIdOrNull()
     if (mediaId != null) {
       if (mediaId is MediaId.Book) {
-        if (currentLoadedBookId == mediaId.id && player.playbackState != Player.STATE_IDLE) {
-          android.util.Log.i("VOICE_PERF", "[VoicePlayer] Book ${mediaId.id} is already loaded/preparing! Skipping duplicate setBook.")
-          return
-        }
-        currentLoadedBookId = mediaId.id
-        val tRepo = System.currentTimeMillis()
         val book = runBlocking {
           repo.get(mediaId.id)
         }
-        android.util.Log.i("VOICE_PERF", "[VoicePlayer] repo.get took ${System.currentTimeMillis() - tRepo}ms")
         if (book != null) {
-          val tSpeed = System.currentTimeMillis()
           val defaultPlaybackSpeed = runBlocking { defaultPlaybackSpeedStore.data.first() }
           val speed = book.content.effectivePlaybackSpeed(defaultPlaybackSpeed)
           setSkipSilenceEnabled(book.content.skipSilence)
@@ -345,22 +318,15 @@ class VoicePlayer(
           val currentPlaybackItem = book.playbackItemForPosition(
             chapterId = book.content.currentChapter,
             positionInChapterMs = book.content.positionInChapter,
-          ) ?: return
-          val tItems = System.currentTimeMillis()
+          ) ?: book.playbackItems().firstOrNull() ?: return
           val mediaItems = runBlocking { mediaItemProvider.playbackItems(book) }
-          android.util.Log.i("VOICE_PERF", "[VoicePlayer] mediaItemProvider.playbackItems took ${System.currentTimeMillis() - tItems}ms (size=${mediaItems.size})")
-          
-          val tSet = System.currentTimeMillis()
           player.setMediaItems(
             mediaItems,
             currentPlaybackItem.index,
             currentPlaybackItem.positionInMediaItem(book.content.positionInChapter),
           )
-          android.util.Log.i("VOICE_PERF", "[VoicePlayer] player.setMediaItems took ${System.currentTimeMillis() - tSet}ms")
           setPlaybackSpeed(speed)
-          val tPrep = System.currentTimeMillis()
           player.prepare()
-          android.util.Log.i("VOICE_PERF", "[VoicePlayer] player.prepare took ${System.currentTimeMillis() - tPrep}ms (Total setBook=${System.currentTimeMillis() - t0}ms)")
         }
       } else {
         Logger.w("Unexpected mediaId=$mediaId")

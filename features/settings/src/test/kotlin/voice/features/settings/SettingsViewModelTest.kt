@@ -1,10 +1,15 @@
 package voice.features.settings
 
+import android.content.ContentResolver
+import android.content.Context
+import android.net.Uri
 import androidx.datastore.core.DataStore
 import app.cash.molecule.RecompositionMode
 import app.cash.molecule.launchMolecule
 import app.cash.turbine.test
 import io.mockk.Runs
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -19,13 +24,19 @@ import voice.core.common.DispatcherProvider
 import voice.core.data.GridMode
 import voice.core.data.ThemeColorScheme
 import voice.core.data.ThemeMode
+import voice.core.data.backup.BackupManager
+import voice.core.data.backup.ImportResult
+import voice.core.data.backup.VoiceBackup
 import voice.core.data.sleeptimer.SleepTimerPreference
 import voice.core.featureflag.MemoryFeatureFlag
 import voice.core.ui.DynamicColorAvailability
 import voice.core.ui.GridCount
 import voice.core.playback.PlayerController
+import voice.core.scanner.MediaScanTrigger
 import voice.navigation.Destination
 import voice.navigation.Navigator
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -62,6 +73,14 @@ class SettingsViewModelTest {
   private val dynamicColorAvailability = mockk<DynamicColorAvailability> {
     every { isSupported() } returns true
   }
+  private val contentResolver = mockk<ContentResolver>(relaxed = true)
+  private val context = mockk<Context>(relaxed = true) {
+    every { this@mockk.contentResolver } returns this@SettingsViewModelTest.contentResolver
+    every { getString(any()) } returns "Message"
+    every { getString(any(), any(), any()) } returns "Restored 1 books and 2 bookmarks"
+  }
+  private val backupManager = mockk<BackupManager>(relaxed = true)
+  private val mediaScanTrigger = mockk<MediaScanTrigger>(relaxed = true)
 
   private val viewModel = SettingsViewModel(
     themeModeStore = themeModeStore,
@@ -81,6 +100,9 @@ class SettingsViewModelTest {
     resumeOtherMediaStore = resumeOtherMediaStore,
     player = player,
     dynamicColorAvailability = dynamicColorAvailability,
+    context = context,
+    backupManager = backupManager,
+    mediaScanTrigger = mediaScanTrigger,
     dispatcherProvider = DispatcherProvider(scope.coroutineContext, scope.coroutineContext, scope.coroutineContext),
   )
 
@@ -259,6 +281,55 @@ class SettingsViewModelTest {
       viewModel.setDefaultPlaybackSpeed(1.25F)
 
       assertEquals(expected = 1.25F, actual = awaitItem().defaultPlaybackSpeed)
+    }
+  }
+
+  @Test
+  fun `onExportBackup writes json and emits success snackbar`() = scope.runTest {
+    val uri = mockk<Uri>()
+    val outputStream = ByteArrayOutputStream()
+    every { contentResolver.openOutputStream(uri) } returns outputStream
+
+    val backup = VoiceBackup(version = 1)
+    coEvery { backupManager.createBackup() } returns backup
+    every { backupManager.serializeBackup(backup) } returns """{"version":1}"""
+
+    viewModel.viewEffects.test {
+      viewModel.onExportBackup(uri)
+      val effect = awaitItem()
+      assertIs<SettingsViewEffect.ShowSnackbar>(effect)
+      assertEquals("""{"version":1}""", outputStream.toString())
+    }
+  }
+
+  @Test
+  fun `onImportBackup parses json, triggers scan and emits success snackbar`() = scope.runTest {
+    val uri = mockk<Uri>()
+    val jsonString = """{"version":1,"books":[]}"""
+    val inputStream = ByteArrayInputStream(jsonString.toByteArray())
+    every { contentResolver.openInputStream(uri) } returns inputStream
+
+    coEvery { backupManager.restoreBackupFromJson(jsonString) } returns ImportResult(1, 2)
+
+    viewModel.viewEffects.test {
+      viewModel.onImportBackup(uri)
+      val effect = awaitItem()
+      assertIs<SettingsViewEffect.ShowSnackbar>(effect)
+      verify(exactly = 1) {
+        mediaScanTrigger.triggerScan(restartIfScanning = true)
+      }
+    }
+  }
+
+  @Test
+  fun `onImportBackup failure emits error snackbar`() = scope.runTest {
+    val uri = mockk<Uri>()
+    every { contentResolver.openInputStream(uri) } returns null
+
+    viewModel.viewEffects.test {
+      viewModel.onImportBackup(uri)
+      val effect = awaitItem()
+      assertIs<SettingsViewEffect.ShowSnackbar>(effect)
     }
   }
 }

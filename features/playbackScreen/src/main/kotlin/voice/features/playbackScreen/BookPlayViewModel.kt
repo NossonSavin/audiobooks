@@ -10,6 +10,7 @@ import androidx.datastore.core.DataStore
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -87,11 +88,9 @@ class BookPlayViewModel(
     field = mutableStateOf<BookPlayDialogViewState?>(null)
 
   init {
-    android.util.Log.i("VOICE_PERF", "[BookPlayViewModel] init started for bookId=$bookId")
     scope.launch {
       player.pauseIfCurrentBookDifferentFrom(bookId)
       currentBookStoreId.updateData { bookId }
-      android.util.Log.i("VOICE_PERF", "[BookPlayViewModel] init completed: currentBookStoreId updated to $bookId")
     }
   }
 
@@ -256,7 +255,6 @@ class BookPlayViewModel(
   }
 
   fun playPause() {
-    android.util.Log.i("VOICE_PERF", "[BookPlayViewModel] playPause() clicked (current playState=${playStateManager.playState})")
     if (playStateManager.playState != PlayStateManager.PlayState.Playing) {
       scope.launch {
         if (batteryOptimization.shouldRequest()) {
@@ -265,7 +263,7 @@ class BookPlayViewModel(
         }
       }
     }
-    player.playPause(pauseOtherMusicIfActive = false)
+    player.playPause()
   }
 
   fun rewind() {
@@ -357,8 +355,11 @@ class BookPlayViewModel(
     }
   }
 
+  private var seekJob: Job? = null
+
   fun seekTo(position: Duration) {
-    scope.launch {
+    seekJob?.cancel()
+    seekJob = scope.launch {
       val book = currentBook() ?: return@launch
       val currentChapter = book.currentChapter
       val currentMark = currentChapter.markForPosition(book.content.positionInChapter)

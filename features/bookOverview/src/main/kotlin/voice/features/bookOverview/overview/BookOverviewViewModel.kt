@@ -292,7 +292,7 @@ class BookOverviewViewModel(
   }
 
   fun playPause() {
-    playerController.playPause(pauseOtherMusicIfActive = false)
+    playerController.playPause()
   }
 
   fun onPermissionBugCardClick() {

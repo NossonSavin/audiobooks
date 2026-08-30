@@ -30,15 +30,12 @@ class PlaybackService : MediaLibraryService() {
   lateinit var voiceNotificationProvider: VoiceMediaNotificationProvider
 
   override fun onCreate() {
-    val t0 = System.currentTimeMillis()
-    android.util.Log.i("VOICE_PERF", "[PlaybackService] onCreate started")
     super.onCreate()
     rootGraphAs<PlaybackGraph.Provider>()
       .playbackGraphFactory
       .create(this)
       .inject(this)
     setMediaNotificationProvider(voiceNotificationProvider)
-    android.util.Log.i("VOICE_PERF", "[PlaybackService] onCreate completed in ${System.currentTimeMillis() - t0}ms")
   }
 
   private fun release() {

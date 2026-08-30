@@ -17,6 +17,8 @@ import voice.core.logging.api.Logger
 import voice.core.scanner.matroska.MatroskaCoverExtractor
 import java.io.File
 
+import android.graphics.BitmapFactory
+
 @Inject
 internal class CoverExtractor(
   private val context: Context,
@@ -46,17 +48,25 @@ internal class CoverExtractor(
             when (val entry = metadata.get(metadataIndex)) {
               is ApicFrame -> {
                 Logger.w("Found image frame in ${trackGroup.type}")
-                outputFile.outputStream().use { output ->
-                  output.write(entry.pictureData)
+                if (entry.pictureData.isNotEmpty()) {
+                  outputFile.outputStream().use { output ->
+                    output.write(entry.pictureData)
+                  }
+                  if (isValidImageFile(outputFile)) {
+                    return true
+                  }
                 }
-                return true
               }
               is PictureFrame -> {
                 Logger.w("Found image frame in ${trackGroup.type}")
-                outputFile.outputStream().use { output ->
-                  output.write(entry.pictureData)
+                if (entry.pictureData.isNotEmpty()) {
+                  outputFile.outputStream().use { output ->
+                    output.write(entry.pictureData)
+                  }
+                  if (isValidImageFile(outputFile)) {
+                    return true
+                  }
                 }
-                return true
               }
               else -> {
                 Logger.v("Unknown metadata entry: $entry")
@@ -67,6 +77,13 @@ internal class CoverExtractor(
       }
     }
     return false
+  }
+
+  private fun isValidImageFile(file: File): Boolean {
+    if (!file.isFile || file.length() <= 0L) return false
+    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(file.absolutePath, options)
+    return options.outWidth > 0 && options.outHeight > 0
   }
 
   private suspend fun retrieveMetadata(uri: Uri): TrackGroupArray? {

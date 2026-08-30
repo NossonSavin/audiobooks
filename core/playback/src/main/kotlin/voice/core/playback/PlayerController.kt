@@ -76,28 +76,33 @@ class PlayerController(
       return _controller
     }
   private val scope = CoroutineScope(Dispatchers.Main.immediate)
+  private var seekJob: Job? = null
+  private var navJob: Job? = null
 
   fun setPosition(
     time: Long,
     id: ChapterId,
-  ) = executeAfterPrepare { controller ->
-    val bookId = currentBookStoreId.data.first() ?: return@executeAfterPrepare
-    val book = bookRepository.get(bookId) ?: return@executeAfterPrepare
-    val playbackItem = book.playbackItemForPosition(
-      chapterId = id,
-      positionInChapterMs = time,
-    )
-    if (playbackItem != null) {
-      controller.seekTo(playbackItem.index, playbackItem.positionInMediaItem(time))
+  ) {
+    seekJob?.cancel()
+    seekJob = scope.launch {
+      val controller = awaitConnect() ?: return@launch
+      if (!maybePrepare(controller)) return@launch
+      val bookId = currentBookStoreId.data.first() ?: return@launch
+      val book = bookRepository.get(bookId) ?: return@launch
+      val playbackItem = book.playbackItemForPosition(
+        chapterId = id,
+        positionInChapterMs = time,
+      )
+      if (playbackItem != null) {
+        controller.seekTo(playbackItem.index, playbackItem.positionInMediaItem(time))
+      }
     }
   }
 
   fun prewarm() {
     scope.launch {
       val controller = awaitConnect() ?: return@launch
-      if (maybePrepare(controller)) {
-        android.util.Log.i("VOICE_PERF", "[PlayerController] Prewarm completed successfully")
-      }
+      maybePrepare(controller)
     }
   }
 
@@ -136,12 +141,24 @@ class PlayerController(
     }
   }
 
-  fun fastForward() = executeAfterPrepare { controller ->
-    controller.seekForward()
+  fun fastForward() {
+    navJob?.cancel()
+    navJob = scope.launch {
+      val controller = awaitConnect() ?: return@launch
+      if (maybePrepare(controller)) {
+        controller.seekForward()
+      }
+    }
   }
 
-  fun rewind() = executeAfterPrepare { controller ->
-    controller.seekBack()
+  fun rewind() {
+    navJob?.cancel()
+    navJob = scope.launch {
+      val controller = awaitConnect() ?: return@launch
+      if (maybePrepare(controller)) {
+        controller.seekBack()
+      }
+    }
   }
 
   fun previous() = executeAfterPrepare { controller ->
@@ -163,80 +180,39 @@ class PlayerController(
     }
   }
 
-  fun playPause(pauseOtherMusicIfActive: Boolean = true) {
-    scope.launch { playPauseAsync(pauseOtherMusicIfActive) }
-  }
-
-  suspend fun playPauseAsync(pauseOtherMusicIfActive: Boolean = true) {
-    val t0 = System.currentTimeMillis()
-    android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync started (pauseOtherMusicIfActive=$pauseOtherMusicIfActive)")
-    val controller = awaitConnect()
-    if (controller == null) {
-      android.util.Log.w("VOICE_PERF", "[PlayerController] awaitConnect returned null!")
-      return
-    }
+  fun playPause() = executeAfterPrepare { controller ->
     if (controller.isPlaying) {
       controller.pause()
-      android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync paused in ${System.currentTimeMillis() - t0}ms")
     } else {
-      val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-      val isOtherAudioActive = audioManager?.isMusicActive == true
-      if (pauseOtherMusicIfActive && isOtherAudioActive) {
-        android.util.Log.i("VOICE_PERF", "[PlayerController] Other audio is active, sending media pause key event")
-        pauseOtherMusic(audioManager)
+      controller.play()
+    }
+  }
+
+  suspend fun playPauseAsync() {
+    val controller = awaitConnect() ?: return
+    if (maybePrepare(controller)) {
+      if (controller.isPlaying) {
+        controller.pause()
       } else {
-        val resumeOtherMedia = resumeOtherMediaStore.data.first()
-        if (pauseOtherMusicIfActive && resumeOtherMedia && audioManager != null) {
-          android.util.Log.i("VOICE_PERF", "[PlayerController] Trying to resume external media...")
-          resumeOtherMusic(audioManager)
-          delay(100.milliseconds)
-          if (audioManager.isMusicActive) {
-            android.util.Log.i("VOICE_PERF", "[PlayerController] External media resumed successfully")
-            return
-          }
-          android.util.Log.i("VOICE_PERF", "[PlayerController] External media did not resume, falling back to audiobook")
-        }
-        if (maybePrepare(controller)) {
-          controller.play()
-          android.util.Log.i("VOICE_PERF", "[PlayerController] playPauseAsync played in ${System.currentTimeMillis() - t0}ms")
-        }
+        controller.play()
       }
     }
   }
 
-  private fun pauseOtherMusic(audioManager: AudioManager) {
-    val eventDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
-    val eventUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
-    audioManager.dispatchMediaKeyEvent(eventDown)
-    audioManager.dispatchMediaKeyEvent(eventUp)
-  }
-
-  private fun resumeOtherMusic(audioManager: AudioManager) {
-    val eventDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
-    val eventUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
-    audioManager.dispatchMediaKeyEvent(eventDown)
-    audioManager.dispatchMediaKeyEvent(eventUp)
-  }
-
+  @IgnorableReturnValue
   private suspend fun maybePrepare(controller: MediaController): Boolean {
-    val t0 = System.currentTimeMillis()
     val bookId = currentBookStoreId.data.first() ?: return false
     val currentBookId = controller.currentBookId()
-    android.util.Log.i("VOICE_PERF", "[PlayerController] maybePrepare: targetBookId=$bookId, controllerBookId=$currentBookId, state=${controller.playbackState}")
     if (currentBookId == bookId &&
       controller.playbackState in listOf(Player.STATE_READY, Player.STATE_BUFFERING)
     ) {
-      android.util.Log.i("VOICE_PERF", "[PlayerController] maybePrepare: already ready/buffering!")
       return true
     }
-    val tRepo = System.currentTimeMillis()
     val book = bookRepository.get(bookId) ?: return false
-    android.util.Log.i("VOICE_PERF", "[PlayerController] maybePrepare: bookRepo.get took ${System.currentTimeMillis() - tRepo}ms")
     val hideCoverFromSystem = hideCoverFromSystemStore.data.first()
     val item = mediaItemProvider.mediaItem(book, hideCoverFromSystem)
     controller.setMediaItem(item)
     controller.prepare()
-    android.util.Log.i("VOICE_PERF", "[PlayerController] maybePrepare: setMediaItem+prepare sent via IPC in ${System.currentTimeMillis() - t0}ms")
     return true
   }
 
@@ -364,30 +340,17 @@ class PlayerController(
 
   private inline fun executeAfterPrepare(crossinline action: suspend (MediaController) -> Unit) {
     scope.launch {
-      val t0 = System.currentTimeMillis()
-      android.util.Log.i("VOICE_PERF", "[PlayerController] executeAfterPrepare started")
-      val controller = awaitConnect()
-      if (controller == null) {
-        android.util.Log.w("VOICE_PERF", "[PlayerController] awaitConnect returned null!")
-        return@launch
-      }
-      android.util.Log.i("VOICE_PERF", "[PlayerController] awaitConnect took ${System.currentTimeMillis() - t0}ms")
-      val tPrep = System.currentTimeMillis()
+      val controller = awaitConnect() ?: return@launch
       if (maybePrepare(controller)) {
-        android.util.Log.i("VOICE_PERF", "[PlayerController] maybePrepare took ${System.currentTimeMillis() - tPrep}ms. Calling action...")
         action(controller)
-        android.util.Log.i("VOICE_PERF", "[PlayerController] action completed (Total executeAfterPrepare=${System.currentTimeMillis() - t0}ms)")
       }
     }
   }
 
   @IgnorableReturnValue
   suspend fun awaitConnect(): MediaController? {
-    val t0 = System.currentTimeMillis()
     return try {
-      val res = controller.await()
-      android.util.Log.i("VOICE_PERF", "[PlayerController] controller.await() completed in ${System.currentTimeMillis() - t0}ms")
-      res
+      controller.await()
     } catch (e: Exception) {
       if (e is CancellationException) currentCoroutineContext().ensureActive()
       Logger.w(e, "Error while connecting to media controller")

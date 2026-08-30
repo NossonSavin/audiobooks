@@ -1,11 +1,14 @@
 package voice.features.settings
 
+import android.content.Context
+import android.net.Uri
 import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import dev.zacsweers.metro.Inject
@@ -19,6 +22,7 @@ import voice.core.common.MainScope
 import voice.core.data.GridMode
 import voice.core.data.ThemeColorScheme
 import voice.core.data.ThemeMode
+import voice.core.data.backup.BackupManager
 import voice.core.data.sleeptimer.SleepTimerPreference
 import voice.core.data.store.AnalyticsConsentStore
 import voice.core.data.store.AutoRewindAmountStore
@@ -33,12 +37,15 @@ import voice.core.data.store.ThemeColorSchemeStore
 import voice.core.data.store.ThemeModeStore
 import voice.core.featureflag.FeatureFlag
 import voice.core.featureflag.KioskModeFeatureFlagQualifier
+import voice.core.logging.api.Logger
 import voice.core.playback.PlayerController
+import voice.core.scanner.MediaScanTrigger
 import voice.core.ui.DynamicColorAvailability
 import voice.core.ui.GridCount
 import voice.navigation.Destination
 import voice.navigation.Navigator
 import java.time.LocalTime
+import voice.core.strings.R as StringsR
 
 @Inject
 class SettingsViewModel(
@@ -71,6 +78,9 @@ class SettingsViewModel(
   private val resumeOtherMediaStore: DataStore<Boolean>,
   private val player: PlayerController,
   private val dynamicColorAvailability: DynamicColorAvailability,
+  private val context: Context,
+  private val backupManager: BackupManager,
+  private val mediaScanTrigger: MediaScanTrigger,
   dispatcherProvider: DispatcherProvider,
 ) : SettingsListener {
 
@@ -294,6 +304,48 @@ class SettingsViewModel(
       if (++appVersionTapCount >= 13) {
         developerMenuUnlockedStore.updateData { true }
         viewEffects.emit(SettingsViewEffect.DeveloperMenuUnlocked)
+      }
+    }
+  }
+
+  override fun onExportBackup(uri: Uri) {
+    mainScope.launch {
+      try {
+        val backup = backupManager.createBackup()
+        val jsonString = backupManager.serializeBackup(backup)
+        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+          outputStream.writer().use { writer ->
+            writer.write(jsonString)
+          }
+        } ?: error("Could not open output stream for $uri")
+        viewEffects.emit(SettingsViewEffect.ShowSnackbar(context.getString(StringsR.string.settings_backup_export_success)))
+      } catch (e: Exception) {
+        Logger.e(e, "Export backup failed")
+        viewEffects.emit(SettingsViewEffect.ShowSnackbar(context.getString(StringsR.string.settings_backup_export_error)))
+      }
+    }
+  }
+
+  override fun onImportBackup(uri: Uri) {
+    mainScope.launch {
+      try {
+        val jsonString = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+          inputStream.reader().use { reader ->
+            reader.readText()
+          }
+        } ?: error("Could not open input stream for $uri")
+
+        val result = backupManager.restoreBackupFromJson(jsonString)
+        mediaScanTrigger.triggerScan(restartIfScanning = true)
+        val message = context.getString(
+          StringsR.string.settings_backup_import_success,
+          result.booksCount,
+          result.bookmarksCount,
+        )
+        viewEffects.emit(SettingsViewEffect.ShowSnackbar(message))
+      } catch (e: Exception) {
+        Logger.e(e, "Import backup failed")
+        viewEffects.emit(SettingsViewEffect.ShowSnackbar(context.getString(StringsR.string.settings_backup_import_error)))
       }
     }
   }

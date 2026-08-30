@@ -9,6 +9,10 @@ public interface BookmarkRepo {
 
   public suspend fun addBookmark(bookmark: Bookmark)
 
+  public suspend fun addAll(bookmarks: List<Bookmark>)
+
+  public suspend fun all(): List<Bookmark>
+
   @IgnorableReturnValue
   public suspend fun addBookmarkAtBookPosition(
     book: Book,

@@ -25,6 +25,8 @@ import voice.core.logging.api.Logger
 import java.io.File
 import voice.core.strings.R as StringsR
 
+import android.graphics.BitmapFactory
+
 @Inject
 class MediaItemProvider(
   private val bookRepository: BookRepository,
@@ -86,7 +88,7 @@ class MediaItemProvider(
             mark = mark,
           ),
           content = content,
-          imageUri = content.cover?.toProvidedUri().takeUnless { hide },
+          imageUri = content.cover?.toProvidedUri()?.takeUnless { hide },
         )
       }
       MediaId.Recent -> recent()
@@ -118,7 +120,7 @@ class MediaItemProvider(
 
   internal suspend fun playbackItems(book: Book): List<MediaItem> {
     val hide = hideCoverFromSystem()
-    val imageUri = book.content.cover?.toProvidedUri().takeUnless { hide }
+    val imageUri = book.content.cover?.toProvidedUri()?.takeUnless { hide }
     return book.playbackItems().map { playbackItem ->
       mediaItem(playbackItem, book.content, imageUri)
     }
@@ -154,7 +156,7 @@ class MediaItemProvider(
       mediaId = MediaId.Book(book.id),
       browsable = false,
       isPlayable = true,
-      imageUri = book.content.cover?.toProvidedUri().takeUnless { hideCoverFromSystem },
+      imageUri = book.content.cover?.toProvidedUri()?.takeUnless { hideCoverFromSystem },
       mediaType = MediaType.AudioBook,
     )
   }
@@ -169,8 +171,8 @@ class MediaItemProvider(
       mediaId = MediaId.Chapter(bookId = content.id, chapterId = chapter.id),
       browsable = false,
       isPlayable = true,
-      sourceUri = chapter.id.toUri().toFastPlaybackUri(),
-      imageUri = content.cover?.toProvidedUri().takeUnless { hideCoverFromSystem },
+      sourceUri = chapter.id.toUri().toDirectFileUriIfAvailable(),
+      imageUri = content.cover?.toProvidedUri()?.takeUnless { hideCoverFromSystem },
       artist = content.author,
       mediaType = MediaType.AudioBookChapter,
     )
@@ -197,7 +199,7 @@ class MediaItemProvider(
       mediaId = playbackItem.mediaId,
       browsable = false,
       isPlayable = true,
-      sourceUri = playbackItem.chapter.id.toUri().toFastPlaybackUri(),
+      sourceUri = playbackItem.chapter.id.toUri().toDirectFileUriIfAvailable(),
       imageUri = imageUri,
       artist = content.author,
       durationMs = playbackItem.mark.durationMs,
@@ -206,5 +208,43 @@ class MediaItemProvider(
     )
   }
 
-  private fun File.toProvidedUri(): Uri = imageFileProvider.uri(this)
+  private fun File.toProvidedUri(): Uri? {
+    if (!isFile || length() <= 0L) return null
+    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(absolutePath, options)
+    if (options.outWidth <= 0 || options.outHeight <= 0) return null
+    return imageFileProvider.uri(this)
+  }
+}
+
+internal fun Uri.toDirectFileUriIfAvailable(): Uri {
+  if (scheme == "file") return this
+  if (scheme == "content" && authority == "com.android.externalstorage.documents") {
+    try {
+      val docId = try {
+        android.provider.DocumentsContract.getDocumentId(this)
+      } catch (_: Exception) {
+        val decoded = java.net.URLDecoder.decode(toString(), "UTF-8")
+        decoded.substringAfterLast("/document/")
+          .takeIf { it.isNotEmpty() && it != decoded }
+          ?: decoded.substringAfterLast("/tree/")
+      }
+      if (!docId.isNullOrEmpty()) {
+        val file = if (docId.startsWith("primary:", ignoreCase = true)) {
+          val relativePath = docId.substringAfter(":")
+          File(android.os.Environment.getExternalStorageDirectory(), relativePath)
+        } else if (docId.contains(":")) {
+          val split = docId.split(":", limit = 2)
+          File("/storage/${split[0]}", split[1])
+        } else {
+          null
+        }
+        if (file != null && file.exists() && file.canRead()) {
+          return Uri.fromFile(file)
+        }
+      }
+    } catch (_: Exception) {
+    }
+  }
+  return this
 }

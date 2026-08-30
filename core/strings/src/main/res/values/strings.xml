@@ -292,4 +292,20 @@
     <string name="sleep_timer.dialog.title">Sweet dreams! 🌙</string>
     <!-- Sleep timer option and playback status for stopping at the end of a chapter. -->
     <string name="sleep_timer.end_of_chapter">End of Chapter</string>
+    <!-- Settings row title for exporting a backup file. -->
+    <string name="settings.backup.export.title">Export backup</string>
+    <!-- Settings row summary for exporting a backup file. -->
+    <string name="settings.backup.export.summary">Save your library progress, positions, and bookmarks to a file</string>
+    <!-- Settings row title for importing a backup file. -->
+    <string name="settings.backup.import.title">Import backup</string>
+    <!-- Settings row summary for importing a backup file. -->
+    <string name="settings.backup.import.summary">Restore your library progress, positions, and bookmarks from a file</string>
+    <!-- Snackbar message shown after successfully exporting a backup. -->
+    <string name="settings.backup.export.success">Backup exported successfully</string>
+    <!-- Snackbar message shown after failing to export a backup. -->
+    <string name="settings.backup.export.error">Failed to export backup</string>
+    <!-- Snackbar message template shown after successfully importing a backup. -->
+    <string name="settings.backup.import.success">Restored %1$d books and %2$d bookmarks</string>
+    <!-- Snackbar message shown after failing to import a backup. -->
+    <string name="settings.backup.import.error">Failed to import backup</string>
 </resources>

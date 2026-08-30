@@ -14,7 +14,6 @@ class PlaybackPrewarmInitializer(
 ) : AppInitializer {
 
   override fun onAppStart(application: Application) {
-    android.util.Log.i("VOICE_PERF", "[PlaybackPrewarmInitializer] Prewarming playback in background...")
     playerController.prewarm()
   }
 }

@@ -1,5 +1,6 @@
 package voice.features.settings
 
+import android.net.Uri
 import voice.core.data.ThemeColorScheme
 import voice.core.data.ThemeMode
 import java.time.LocalTime
@@ -32,6 +33,8 @@ interface SettingsListener {
   fun toggleResumeOtherMedia()
   fun openFolderPicker()
   fun onAppVersionClick()
+  fun onExportBackup(uri: Uri)
+  fun onImportBackup(uri: Uri)
 
   fun openDeveloperMenu()
 
@@ -64,6 +67,8 @@ interface SettingsListener {
       override fun toggleResumeOtherMedia() {}
       override fun openFolderPicker() {}
       override fun onAppVersionClick() {}
+      override fun onExportBackup(uri: Uri) {}
+      override fun onImportBackup(uri: Uri) {}
       override fun openDeveloperMenu() {}
     }
   }
