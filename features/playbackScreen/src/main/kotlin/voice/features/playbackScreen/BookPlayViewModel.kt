@@ -263,7 +263,7 @@ class BookPlayViewModel(
         }
       }
     }
-    player.playPause()
+    player.playPause(pauseOtherMusicIfActive = false)
   }
 
   fun rewind() {

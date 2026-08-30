@@ -180,23 +180,47 @@ class PlayerController(
     }
   }
 
-  fun playPause() = executeAfterPrepare { controller ->
+  fun playPause(pauseOtherMusicIfActive: Boolean = true) {
+    scope.launch { playPauseAsync(pauseOtherMusicIfActive) }
+  }
+
+  suspend fun playPauseAsync(pauseOtherMusicIfActive: Boolean = true) {
+    val controller = awaitConnect() ?: return
     if (controller.isPlaying) {
       controller.pause()
     } else {
-      controller.play()
+      val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+      val isOtherAudioActive = audioManager?.isMusicActive == true
+      if (pauseOtherMusicIfActive && isOtherAudioActive) {
+        pauseOtherMusic(audioManager)
+      } else {
+        val resumeOtherMedia = resumeOtherMediaStore.data.first()
+        if (pauseOtherMusicIfActive && resumeOtherMedia && audioManager != null) {
+          resumeOtherMusic(audioManager)
+          delay(100.milliseconds)
+          if (audioManager.isMusicActive) {
+            return
+          }
+        }
+        if (maybePrepare(controller)) {
+          controller.play()
+        }
+      }
     }
   }
 
-  suspend fun playPauseAsync() {
-    val controller = awaitConnect() ?: return
-    if (maybePrepare(controller)) {
-      if (controller.isPlaying) {
-        controller.pause()
-      } else {
-        controller.play()
-      }
-    }
+  private fun pauseOtherMusic(audioManager: AudioManager) {
+    val eventDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
+    val eventUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+    audioManager.dispatchMediaKeyEvent(eventDown)
+    audioManager.dispatchMediaKeyEvent(eventUp)
+  }
+
+  private fun resumeOtherMusic(audioManager: AudioManager) {
+    val eventDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
+    val eventUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
+    audioManager.dispatchMediaKeyEvent(eventDown)
+    audioManager.dispatchMediaKeyEvent(eventUp)
   }
 
   @IgnorableReturnValue
