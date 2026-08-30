@@ -84,8 +84,8 @@
     <string name="folder.add.type.file">File</string>
     <!-- Button label for adding a folder of audiobooks. -->
     <string name="folder.add.type.folder">Select Folder</string>
-    <!-- Subtitle explaining that Voice finds audiobooks automatically in folders. -->
-    <string name="folder.add.type.subtitle">Select the root folder where your audiobooks are located.\n\nVoice identifies each audiobook by its subfolder: all audio files inside the same subfolder are grouped as one audiobook, so each book should be in its own folder.</string>
+    <!-- Subtitle explaining that audiobooks are automatically found in folders. -->
+    <string name="folder.add.type.subtitle">Select the root folder where your audiobooks are located.\n\nEach subfolder is recognized as a separate audiobook: all audio files inside the same subfolder are grouped together as one book, so each audiobook must be in its own folder.</string>
     <!-- Title for folder mode where subfolders are authors and nested folders are books. -->
     <string name="folder.mode.author.title">Author-Book Mode: Subfolders are authors, sub-subfolders are books.</string>
     <!-- Title for folder mode where top-level subfolders are books. -->
@@ -93,7 +93,7 @@
     <!-- Title for folder mode where the selected folder is one book. -->
     <string name="folder.mode.single.title">Single Book Mode: One folder equals one book.</string>
     <!-- Empty-state message when no books are detected from selected files. -->
-    <string name="folder.type.book_example.empty">Voice could not detect any books. Are there any audio files?</string>
+    <string name="folder.type.book_example.empty">Could not detect any books. Are there any audio files?</string>
     <!-- Header above the preview of books detected from a folder structure. -->
     <string name="folder.type.book_example.header">This would lead to the following books being detected</string>
     <!-- Pluralized file count shown in folder structure previews. -->
@@ -122,7 +122,7 @@
     <!-- Button label for granting the storage permission workaround. -->
     <string name="library.storage_permission_bug.action">Grant permission</string>
     <!-- Message explaining why a storage permission workaround is needed. -->
-    <string name="library.storage_permission_bug.message">For certain devices, a system app is missing the necessary permission to access the external storage. This access is essential for Voice to read your audiobooks.</string>
+    <string name="library.storage_permission_bug.message">For certain devices, a system app is missing the necessary permission to access the external storage. This access is essential to read your audiobooks.</string>
     <!-- Title for the card explaining a required storage permission workaround. -->
     <string name="library.storage_permission_bug.title">Permission required</string>
     <!-- Media browser title for recently played audiobooks. -->
