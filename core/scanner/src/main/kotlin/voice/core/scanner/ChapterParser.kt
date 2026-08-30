@@ -32,31 +32,33 @@ internal class ChapterParser(
       return@coroutineScope ChapterParseResult(emptyList(), null)
     }
 
-    val parsedResults = filesToParse.mapNotNull { file ->
-      val id = ChapterId(file.uri)
-      var analyzed: Metadata? = null
-      val chapter = chapterRepo.getOrPut(
-        id = id,
-        lastModified = Instant.ofEpochMilli(file.lastModified),
-        fileSize = file.length,
-      ) {
-        val metaData = mediaAnalyzer.analyze(file) ?: return@getOrPut null
-        analyzed = metaData
-        Chapter(
+    val parsedResults = filesToParse.map { file ->
+      async {
+        val id = ChapterId(file.uri)
+        var analyzed: Metadata? = null
+        val chapter = chapterRepo.getOrPut(
           id = id,
-          duration = metaData.duration,
-          fileLastModified = Instant.ofEpochMilli(file.lastModified),
-          name = metaData.title ?: metaData.fileName,
-          markData = metaData.chapters,
+          lastModified = Instant.ofEpochMilli(file.lastModified),
           fileSize = file.length,
-        )
+        ) {
+          val metaData = mediaAnalyzer.analyze(file) ?: return@getOrPut null
+          analyzed = metaData
+          Chapter(
+            id = id,
+            duration = metaData.duration,
+            fileLastModified = Instant.ofEpochMilli(file.lastModified),
+            name = metaData.title ?: metaData.fileName,
+            markData = metaData.chapters,
+            fileSize = file.length,
+          )
+        }
+        if (chapter != null) {
+          chapter to analyzed
+        } else {
+          null
+        }
       }
-      if (chapter != null) {
-        chapter to analyzed
-      } else {
-        null
-      }
-    }
+    }.awaitAll().filterNotNull()
 
     val chapters = parsedResults.map { it.first }.sorted()
     val metadataMap = parsedResults.mapNotNull { (chapter, metadata) ->

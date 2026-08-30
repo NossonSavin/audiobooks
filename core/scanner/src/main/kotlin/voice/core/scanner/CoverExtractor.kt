@@ -35,6 +35,32 @@ internal class CoverExtractor(
       return matroskaCoverExtractor.extract(input, outputFile)
     }
 
+    try {
+      val mmr = android.media.MediaMetadataRetriever()
+      try {
+        try {
+          context.contentResolver.openFileDescriptor(input, "r")?.use { pfd ->
+            mmr.setDataSource(pfd.fileDescriptor)
+          } ?: mmr.setDataSource(context, input)
+        } catch (_: Exception) {
+          mmr.setDataSource(context, input)
+        }
+        val picture = mmr.embeddedPicture
+        if (picture != null && picture.isNotEmpty()) {
+          outputFile.outputStream().use { output ->
+            output.write(picture)
+          }
+          if (isValidImageFile(outputFile)) {
+            return true
+          }
+        }
+      } finally {
+        mmr.release()
+      }
+    } catch (e: Exception) {
+      Logger.v("Native cover extraction failed for $input: $e")
+    }
+
     val trackGroups = retrieveMetadata(input)
       ?: return false
 

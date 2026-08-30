@@ -27,6 +27,7 @@ import voice.core.scanner.matroska.MatroskaParseException
 import voice.core.scanner.mp4.Mp4ChapterExtractor
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.microseconds
+import kotlin.time.Duration.Companion.milliseconds
 
 @Inject
 internal class MediaAnalyzer(
@@ -45,27 +46,63 @@ internal class MediaAnalyzer(
   suspend fun analyze(file: CachedDocumentFile): Metadata? {
     val builder = Metadata.Builder(file.nameWithoutExtension())
 
-    val (trackGroups, duration) = retrieveMetadataAndDuration(file.uri)
-      ?: return null
+    val fileType = FileTypes.inferFileTypeFromUri(file.uri)
+    val extension = (file.name ?: "").substringAfterLast(delimiter = ".", missingDelimiterValue = "").lowercase()
+    val isMp4 = fileType == FileTypes.MP4 || extension == "mp4" || extension == "m4a" || extension == "m4b"
+    val isMatroska = fileType == FileTypes.MATROSKA || extension == "mka" || extension == "mkv"
 
-    if (duration <= Duration.ZERO) {
+    val nativeData = retrieveNativeMetadata(file.uri)
+    var duration = nativeData?.second
+
+    if (nativeData != null) {
+      val meta = nativeData.first
+      if (meta.title != null) builder.title = meta.title
+      if (meta.artist != null) builder.artist = meta.artist
+      if (meta.album != null) builder.album = meta.album
+      if (meta.genre != null) builder.genre = meta.genre
+      if (meta.narrator != null) builder.narrator = meta.narrator
+    }
+
+    if (isMp4) {
+      parseMp4Chapters(file, builder)
+      if (duration != null && duration > Duration.ZERO) {
+        return builder.build(duration)
+      }
+    } else if (isMatroska) {
+      parseMatroskaMetaData(file, builder)
+      if (duration != null && duration > Duration.ZERO) {
+        return builder.build(duration)
+      }
+    }
+
+    val media3Result = retrieveMetadataAndDuration(file.uri)
+    val trackGroups = media3Result?.first
+    val media3Duration = media3Result?.second
+
+    if (duration == null || duration <= Duration.ZERO) {
+      duration = media3Duration
+    }
+
+    if (duration == null || duration <= Duration.ZERO) {
       Logger.w("Duration is zero or negative for file: ${file.uri}")
       return null
     }
 
-    repeat(trackGroups.length) { trackGroupsIndex ->
-      val trackGroup = trackGroups[trackGroupsIndex]
-      if (trackGroup.type == C.TRACK_TYPE_AUDIO) {
-        repeat(trackGroup.length) { formatIndex ->
-          val format = trackGroup.getFormat(formatIndex)
-          format.metadata?.let { metadata ->
-            repeat(metadata.length()) { metadataIndex ->
-              when (val entry = metadata.get(metadataIndex)) {
-                is TextInformationFrame -> visitText(entry, builder)
-                is ChapterFrame -> visitChapter(entry, builder)
-                is VorbisComment -> visitVorbis(entry, builder)
-                is MdtaMetadataEntry -> visitMdta(entry, builder)
-                else -> Logger.d("Unknown metadata entry: $entry")
+    if (trackGroups != null) {
+      repeat(trackGroups.length) { trackGroupsIndex ->
+        val trackGroup = trackGroups[trackGroupsIndex]
+        if (trackGroup.type == C.TRACK_TYPE_AUDIO) {
+          repeat(trackGroup.length) { formatIndex ->
+            val format = trackGroup.getFormat(formatIndex)
+            format.metadata?.let { metadata ->
+              repeat(metadata.length()) { metadataIndex ->
+                when (val entry = metadata.get(metadataIndex)) {
+                  is TextInformationFrame -> visitText(entry, builder)
+                  is ChapterFrame -> visitChapter(entry, builder)
+                  is VorbisComment -> visitVorbis(entry, builder)
+                  is MdtaMetadataEntry -> visitMdta(entry, builder)
+                  else -> Logger.d("Unknown metadata entry: $entry")
+                }
               }
             }
           }
@@ -73,17 +110,58 @@ internal class MediaAnalyzer(
       }
     }
 
-    val fileType = FileTypes.inferFileTypeFromUri(file.uri)
-    val extension = (file.name ?: "").substringAfterLast(delimiter = ".", missingDelimiterValue = "").lowercase()
-    if (fileType == FileTypes.MP4 || extension == "mp4" || extension == "m4a" || extension == "m4b") {
+    if (isMp4 && builder.chapters.isEmpty()) {
       parseMp4Chapters(file, builder)
-    }
-    if (fileType == FileTypes.MATROSKA || extension == "mka" || extension == "mkv") {
-      parseMatroskaMetaData(file, builder)
     }
 
     return builder.build(duration)
   }
+
+  private fun retrieveNativeMetadata(uri: Uri): Pair<NativeMetadata, Duration>? {
+    val retriever = android.media.MediaMetadataRetriever()
+    return try {
+      try {
+        context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+          retriever.setDataSource(pfd.fileDescriptor)
+        } ?: retriever.setDataSource(context, uri)
+      } catch (_: Exception) {
+        retriever.setDataSource(context, uri)
+      }
+      val durationMs = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+        ?: return null
+      val duration = durationMs.milliseconds
+      val title = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
+      val artist = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
+        ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
+      val album = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)
+      val genre = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_GENRE)
+      val author = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_AUTHOR)
+        ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_COMPOSER)
+
+      NativeMetadata(
+        title = title,
+        artist = artist,
+        album = album,
+        genre = genre,
+        narrator = author,
+      ) to duration
+    } catch (e: Exception) {
+      Logger.v("Native metadata extraction failed for $uri: $e")
+      null
+    } finally {
+      try {
+        retriever.release()
+      } catch (_: Exception) {}
+    }
+  }
+
+  private data class NativeMetadata(
+    val title: String?,
+    val artist: String?,
+    val album: String?,
+    val genre: String?,
+    val narrator: String?,
+  )
 
   private fun parseMatroskaMetaData(
     file: CachedDocumentFile,

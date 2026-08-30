@@ -57,7 +57,8 @@ internal class MediaScanner(
     }
     chapterRepo.warmup(allChapterIds)
 
-    val semaphore = Semaphore(3)
+    val concurrency = Runtime.getRuntime().availableProcessors().coerceIn(6, 12)
+    val semaphore = Semaphore(concurrency)
     val processedCount = java.util.concurrent.atomic.AtomicInteger(0)
 
     coroutineScope {
