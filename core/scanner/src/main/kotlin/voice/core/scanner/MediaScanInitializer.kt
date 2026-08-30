@@ -8,6 +8,5 @@ import voice.core.initializer.AppInitializer
 public class MediaScanInitializer(private val mediaScanTrigger: MediaScanTrigger) : AppInitializer {
 
   override fun onAppStart(application: android.app.Application) {
-    mediaScanTrigger.triggerScan()
   }
 }
