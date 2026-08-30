@@ -107,6 +107,8 @@ class BookOverviewViewModel(
       .collectAsState(initial = null).value
     val scannerActive = remember { mediaScanner.scannerActive }
       .collectAsState(initial = false).value
+    val scanProgress = remember { mediaScanner.scanProgress }
+      .collectAsState(initial = null).value
     val folderPickerMovedDialogShown = remember { folderPickerMovedDialogShownStore.data }
       .collectAsState(initial = false).value
     val gridMode = remember { gridModeStore.data }
@@ -164,6 +166,7 @@ class BookOverviewViewModel(
       },
       showSearchIcon = books.isNotEmpty(),
       isLoading = scannerActive,
+      scanProgress = scanProgress,
       searchActive = searchActive,
       searchViewState = bookSearchViewState,
       showStoragePermissionBugCard = hasStoragePermissionBug,

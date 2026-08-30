@@ -3,6 +3,7 @@ package voice.features.bookOverview.overview
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.State
 import voice.core.data.BookId
+import voice.core.scanner.ScanProgress
 import voice.features.bookOverview.search.BookSearchViewState
 
 @Immutable
@@ -13,6 +14,7 @@ data class BookOverviewViewState(
   val showAddBookHint: Boolean,
   val showSearchIcon: Boolean,
   val isLoading: Boolean,
+  val scanProgress: ScanProgress? = null,
   val searchActive: Boolean,
   val searchViewState: BookSearchViewState,
   val showStoragePermissionBugCard: Boolean,

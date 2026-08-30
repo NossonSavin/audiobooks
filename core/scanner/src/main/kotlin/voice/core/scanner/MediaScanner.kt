@@ -28,10 +28,16 @@ internal class MediaScanner(
   private val deviceHasPermissionBug: DeviceHasStoragePermissionBug,
 ) {
 
-  suspend fun performScan(folders: List<CachedDocumentFile>) {
+  suspend fun performScan(
+    folders: List<CachedDocumentFile>,
+    onProgress: ((scanned: Int, total: Int) -> Unit)? = null,
+  ) {
     val discoveredBooks = folders
       .flatMap { discoverBooks(it) }
       .distinctBy { it.bookFolder.uri }
+
+    val totalBooks = discoveredBooks.size
+    onProgress?.invoke(0, totalBooks)
 
     contentRepo.setAllInactiveExcept(discoveredBooks.map { BookId(it.bookFolder.uri) })
 
@@ -51,7 +57,10 @@ internal class MediaScanner(
     }
     chapterRepo.warmup(allChapterIds)
 
-    val semaphore = Semaphore(4)
+    val concurrency = Runtime.getRuntime().availableProcessors().coerceIn(8, 16)
+    val semaphore = Semaphore(concurrency)
+    val processedCount = java.util.concurrent.atomic.AtomicInteger(0)
+
     coroutineScope {
       discoveredBooks
         .sortedByDescending { it.audioFiles.size }
@@ -59,6 +68,8 @@ internal class MediaScanner(
           async {
             semaphore.withPermit {
               scan(discoveredBook)
+              val current = processedCount.incrementAndGet()
+              onProgress?.invoke(current, totalBooks)
             }
           }
         }

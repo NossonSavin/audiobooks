@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,14 +52,37 @@ internal fun BookOverviewTopBar(
       searchViewState = viewState.searchViewState,
       onRefresh = onRefresh,
     )
+    val progress = viewState.scanProgress
     var showLoading by remember { mutableStateOf(false) }
-    LaunchedEffect(viewState.isLoading) {
-      if (viewState.isLoading) {
+    LaunchedEffect(viewState.isLoading, progress) {
+      if (progress != null) {
+        showLoading = true
+      } else if (viewState.isLoading) {
         delay(3.seconds)
+        showLoading = viewState.isLoading
+      } else {
+        showLoading = false
       }
-      showLoading = viewState.isLoading
     }
-    if (showLoading) {
+    if (progress != null && progress.total > 0) {
+      Column(
+        modifier = Modifier
+          .padding(top = 8.dp, start = 16.dp, end = 16.dp)
+          .fillMaxWidth(),
+      ) {
+        val fraction = (progress.scanned.toFloat() / progress.total).coerceIn(0f, 1f)
+        LinearProgressIndicator(
+          progress = { fraction },
+          modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+          text = "Scanning ${progress.scanned} of ${progress.total} audiobooks...",
+          style = MaterialTheme.typography.labelSmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          modifier = Modifier.padding(top = 4.dp),
+        )
+      }
+    } else if (showLoading) {
       LinearProgressIndicator(
         Modifier
           .padding(top = 12.dp)

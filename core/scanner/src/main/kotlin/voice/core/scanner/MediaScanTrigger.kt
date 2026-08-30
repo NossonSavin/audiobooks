@@ -16,7 +16,11 @@ import voice.core.data.repo.BookRepository
 import voice.core.documentfile.CachedDocumentFile
 import voice.core.documentfile.CachedDocumentFileFactory
 import voice.core.logging.api.Logger
-import kotlin.time.measureTime
+
+public data class ScanProgress(
+  val scanned: Int,
+  val total: Int,
+)
 
 @SingleIn(AppScope::class)
 @Inject
@@ -31,6 +35,9 @@ internal constructor(
 
   public val scannerActive: Flow<Boolean>
     field = MutableStateFlow(false)
+
+  public val scanProgress: Flow<ScanProgress?>
+    field = MutableStateFlow<ScanProgress?>(null)
 
   private val scope = CoroutineScope(Dispatchers.IO)
   private var scanningJob: Job? = null
@@ -51,9 +58,13 @@ internal constructor(
         .map {
           documentFileFactory.create(it.documentFile.uri)
         }
-      scanner.performScan(folders)
+      val onProgress: (Int, Int) -> Unit = { scanned, total ->
+        scanProgress.value = ScanProgress(scanned = scanned, total = total)
+      }
+      scanner.performScan(folders, onProgress)
       val duration = System.currentTimeMillis() - startTime
       Logger.i("scan took ${duration}ms")
+      scanProgress.value = null
       scannerActive.value = false
 
       val books = bookRepo.all()
