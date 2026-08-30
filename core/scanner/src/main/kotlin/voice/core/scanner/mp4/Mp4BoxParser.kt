@@ -12,12 +12,15 @@ import voice.core.scanner.mp4.visitor.StcoVisitor
 import voice.core.scanner.mp4.visitor.StscVisitor
 import voice.core.scanner.mp4.visitor.SttsVisitor
 
+import voice.core.scanner.mp4.visitor.Co64Visitor
+
 @Inject
 internal class Mp4BoxParser(
   stscVisitor: StscVisitor,
   mdhdVisitor: MdhdVisitor,
   sttsVisitor: SttsVisitor,
   stcoVisitor: StcoVisitor,
+  co64Visitor: Co64Visitor,
   chplVisitor: ChplVisitor,
   chapVisitor: ChapVisitor,
 ) {
@@ -27,6 +30,7 @@ internal class Mp4BoxParser(
     mdhdVisitor,
     sttsVisitor,
     stcoVisitor,
+    co64Visitor,
     chplVisitor,
     chapVisitor,
   )
@@ -73,18 +77,23 @@ internal class Mp4BoxParser(
         headerSize = Mp4Box.LONG_HEADER_SIZE
       }
 
-      val payloadSize = (atomSize - headerSize).toInt()
+      val payloadSize: Long = if (atomSize == 0L) {
+        parentEnd - input.position
+      } else {
+        atomSize - headerSize
+      }
       val payloadEnd = input.position + payloadSize
-      val currentPath = path + atomType
-      Logger.d("Current path: $currentPath, atomType: $atomType")
+      Logger.d("Current path: $path + $atomType, payloadSize: $payloadSize")
 
+      val currentPath = path + atomType
       val visitor = visitorByPath[currentPath]
 
       when {
         visitor != null -> {
           Logger.v("Found ${visitor.path.last()}!")
-          scratch.reset(payloadSize)
-          if (!input.readFully(scratch.data, 0, payloadSize, true)) {
+          val intPayloadSize = payloadSize.toInt()
+          scratch.reset(intPayloadSize)
+          if (!input.readFully(scratch.data, 0, intPayloadSize, true)) {
             return
           }
           visitor.visit(scratch, parseOutput)
@@ -107,15 +116,25 @@ internal class Mp4BoxParser(
           }
         }
         else -> {
-          if (!input.skipFully(payloadSize, true)) {
-            return
+          var remaining = payloadSize
+          while (remaining > 0) {
+            val toSkip = minOf(remaining, Int.MAX_VALUE.toLong()).toInt()
+            if (!input.skipFully(toSkip, true)) {
+              return
+            }
+            remaining -= toSkip
           }
         }
       }
 
       if (input.position < payloadEnd) {
-        if (!input.skipFully((payloadEnd - input.position).toInt(), true)) {
-          return
+        var remaining = payloadEnd - input.position
+        while (remaining > 0) {
+          val toSkip = minOf(remaining, Int.MAX_VALUE.toLong()).toInt()
+          if (!input.skipFully(toSkip, true)) {
+            return
+          }
+          remaining -= toSkip
         }
       }
     }
