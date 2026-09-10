@@ -2,7 +2,10 @@ package voice.core.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioManager
+import android.os.Build
+import android.os.SystemClock
 import android.view.KeyEvent
 import androidx.datastore.core.DataStore
 import androidx.media3.common.C
@@ -25,6 +28,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.asDeferred
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 import voice.core.data.BookId
 import voice.core.data.ChapterId
 import voice.core.data.repo.BookRepository
@@ -123,6 +129,7 @@ class PlayerController(
   suspend fun pauseAsync() {
     val controller = awaitConnect() ?: return
     controller.pause()
+    awaitPlaybackStateChange(controller, expectedPlaying = false)
   }
 
   fun skipSilence(skip: Boolean) = executeAfterPrepare { controller ->
@@ -174,6 +181,7 @@ class PlayerController(
     val controller = awaitConnect() ?: return
     if (maybePrepare(controller)) {
       controller.play()
+      awaitPlaybackStateChange(controller, expectedPlaying = true)
     }
   }
 
@@ -183,39 +191,62 @@ class PlayerController(
 
   suspend fun playPauseAsync(pauseOtherMusicIfActive: Boolean = true) {
     val controller = awaitConnect() ?: return
-    if (controller.isPlaying) {
+    if (controller.isEffectivelyPlaying()) {
       controller.pause()
+      awaitPlaybackStateChange(controller, expectedPlaying = false)
     } else {
       val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-      val isOtherAudioActive = audioManager?.isMusicActive == true
-      if (pauseOtherMusicIfActive && isOtherAudioActive) {
+      val isOtherAudioActive = isOtherAudioPlaying(audioManager)
+      if (pauseOtherMusicIfActive && isOtherAudioActive && audioManager != null) {
         pauseOtherMusic(audioManager)
-      } else {
-        val resumeOtherMedia = resumeOtherMediaStore.data.first()
-        if (pauseOtherMusicIfActive && resumeOtherMedia && audioManager != null) {
-          resumeOtherMusic(audioManager)
-          delay(100.milliseconds)
-          if (audioManager.isMusicActive) {
-            return
-          }
+        return
+      }
+      val resumeOtherMedia = resumeOtherMediaStore.data.first()
+      if (pauseOtherMusicIfActive && resumeOtherMedia && audioManager != null) {
+        resumeOtherMusic(audioManager)
+        delay(200.milliseconds)
+        if (isOtherAudioPlaying(audioManager)) {
+          return
         }
-        if (maybePrepare(controller)) {
-          controller.play()
-        }
+      }
+      if (maybePrepare(controller)) {
+        controller.play()
+        awaitPlaybackStateChange(controller, expectedPlaying = true)
       }
     }
   }
 
+  private fun isOtherAudioPlaying(audioManager: AudioManager?): Boolean {
+    if (audioManager == null) return false
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      try {
+        val configs = audioManager.activePlaybackConfigurations
+        return configs.any { config ->
+          val usage = config.audioAttributes.usage
+          usage == AudioAttributes.USAGE_MEDIA ||
+            usage == AudioAttributes.USAGE_GAME ||
+            usage == AudioAttributes.USAGE_UNKNOWN
+        }
+      } catch (e: Exception) {
+        Logger.w(e, "Error checking active playback configurations")
+      }
+    }
+    return audioManager.isMusicActive
+  }
+
   private fun pauseOtherMusic(audioManager: AudioManager) {
-    val eventDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
-    val eventUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+    val now = SystemClock.uptimeMillis()
+    val eventDown = KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE, 0)
+    val eventUp = KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE, 0)
     audioManager.dispatchMediaKeyEvent(eventDown)
     audioManager.dispatchMediaKeyEvent(eventUp)
   }
 
   private fun resumeOtherMusic(audioManager: AudioManager) {
-    val eventDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY)
-    val eventUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY)
+    val now = SystemClock.uptimeMillis()
+    val eventDown = KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY, 0)
+    val eventUp = KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY, 0)
     audioManager.dispatchMediaKeyEvent(eventDown)
     audioManager.dispatchMediaKeyEvent(eventUp)
   }
@@ -377,5 +408,46 @@ class PlayerController(
       Logger.w(e, "Error while connecting to media controller")
       null
     }
+  }
+
+  private suspend fun awaitPlaybackStateChange(
+    controller: MediaController,
+    expectedPlaying: Boolean,
+  ) {
+    if (controller.isEffectivelyPlaying() == expectedPlaying) return
+    withTimeoutOrNull(2000.milliseconds) {
+      suspendCancellableCoroutine { continuation ->
+        val listener = object : Player.Listener {
+          override fun onIsPlayingChanged(isPlaying: Boolean) {
+            checkCondition()
+          }
+
+          override fun onPlaybackStateChanged(playbackState: Int) {
+            checkCondition()
+          }
+
+          override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            checkCondition()
+          }
+
+          private fun checkCondition() {
+            if (controller.isEffectivelyPlaying() == expectedPlaying && continuation.isActive) {
+              continuation.resume(Unit)
+            }
+          }
+        }
+        controller.addListener(listener)
+        continuation.invokeOnCancellation {
+          controller.removeListener(listener)
+        }
+        if (controller.isEffectivelyPlaying() == expectedPlaying && continuation.isActive) {
+          continuation.resume(Unit)
+        }
+      }
+    }
+  }
+
+  private fun MediaController.isEffectivelyPlaying(): Boolean {
+    return isPlaying || (playWhenReady && playbackState != Player.STATE_ENDED && playbackState != Player.STATE_IDLE)
   }
 }

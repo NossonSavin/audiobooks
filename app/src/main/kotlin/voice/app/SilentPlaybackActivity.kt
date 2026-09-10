@@ -37,8 +37,8 @@ class SilentPlaybackActivity : Activity() {
 
     vibrateHardHaptic()
     scope.launch {
-      withTimeoutOrNull(2000.milliseconds) {
-        playerController.playPauseAsync()
+      withTimeoutOrNull(3000.milliseconds) {
+        playerController.playPauseAsync(pauseOtherMusicIfActive = true)
       }
       finish()
       moveTaskToBack(true)
