@@ -332,11 +332,18 @@ class VoicePlayer(
     setBook(first)
   }
 
+  private var currentLoadedBookId: voice.core.data.BookId? = null
+
   private fun setBook(mediaItem: MediaItem) {
     Logger.v("setBook(${mediaItem.mediaId})")
     val mediaId = mediaItem.mediaId.toMediaIdOrNull()
     if (mediaId != null) {
       if (mediaId is MediaId.Book) {
+        if (currentLoadedBookId == mediaId.id && player.playbackState != Player.STATE_IDLE) {
+          Logger.d("Book ${mediaId.id} is already loaded or preparing, skipping duplicate setBook")
+          return
+        }
+        currentLoadedBookId = mediaId.id
         val book = runBlocking {
           repo.get(mediaId.id)
         }

@@ -220,6 +220,11 @@ class MediaItemProvider(
 internal fun Uri.toDirectFileUriIfAvailable(): Uri {
   if (scheme == "file") return this
   if (scheme == "content" && authority == "com.android.externalstorage.documents") {
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R &&
+      !android.os.Environment.isExternalStorageManager()
+    ) {
+      return this
+    }
     try {
       val docId = try {
         android.provider.DocumentsContract.getDocumentId(this)

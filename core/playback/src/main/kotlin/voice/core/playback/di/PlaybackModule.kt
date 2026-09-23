@@ -6,6 +6,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
@@ -29,6 +30,7 @@ import voice.core.playback.player.onAudioSessionIdChanged
 import voice.core.playback.playstate.PlayStateDelegatingListener
 import voice.core.playback.playstate.PositionUpdater
 import voice.core.playback.session.LibrarySessionCallback
+import voice.core.playback.session.PlaybackDataSourceFactory
 import voice.core.playback.session.PlaybackService
 import voice.core.strings.R as StringsR
 
@@ -38,9 +40,10 @@ interface PlaybackModule {
   @Provides
   @SingleIn(PlaybackScope::class)
   fun mediaSourceFactory(context: Context): MediaSource.Factory {
-    val dataSourceFactory = DefaultDataSource.Factory(context)
+    val dataSourceFactory = PlaybackDataSourceFactory(context)
     val extractorsFactory = DefaultExtractorsFactory()
       .setConstantBitrateSeekingEnabled(true)
+      .setMp4ExtractorFlags(androidx.media3.extractor.mp4.Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
     return DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
   }
 
@@ -61,10 +64,22 @@ interface PlaybackModule {
       .setUsage(C.USAGE_MEDIA)
       .build()
 
+    val loadControl = DefaultLoadControl.Builder()
+      .setBufferDurationsMs(
+        /* minBufferMs = */ 15_000,
+        /* maxBufferMs = */ 30_000,
+        /* bufferForPlaybackMs = */ 250,
+        /* bufferForPlaybackAfterRebufferMs = */ 500,
+      )
+      .setPrioritizeTimeOverSizeThresholds(true)
+      .setBackBuffer(/* backBufferDurationMs = */ 0, /* retainBackBufferFromKeyframe = */ false)
+      .build()
+
     return ExoPlayer.Builder(context, onlyAudioRenderersFactory, mediaSourceFactory)
       .setAudioAttributes(audioAttributes, true)
       .setHandleAudioBecomingNoisy(true)
       .setWakeMode(C.WAKE_MODE_LOCAL)
+      .setLoadControl(loadControl)
       .build()
       .also { player ->
         if (media3AudioOffloadFeatureFlag.get()) {
