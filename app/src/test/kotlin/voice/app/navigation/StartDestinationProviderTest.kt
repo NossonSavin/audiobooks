@@ -5,6 +5,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import voice.core.data.Book
 import voice.core.data.BookId
@@ -32,7 +33,7 @@ class StartDestinationProviderTest {
   )
 
   @Test
-  fun `resumes last played book if exists`() {
+  fun `resumes last played book if exists`() = runTest {
     val bookId = BookId("1")
     every { onboardingCompletedStore.data } returns flowOf(true)
     every { currentBookStore.data } returns flowOf(bookId)
@@ -44,7 +45,7 @@ class StartDestinationProviderTest {
   }
 
   @Test
-  fun `defaults to book overview if no last played book`() {
+  fun `defaults to book overview if no last played book`() = runTest {
     every { onboardingCompletedStore.data } returns flowOf(true)
     every { currentBookStore.data } returns flowOf(null)
 
@@ -54,7 +55,7 @@ class StartDestinationProviderTest {
   }
 
   @Test
-  fun `defaults to book overview if last played book does not exist`() {
+  fun `defaults to book overview if last played book does not exist`() = runTest {
     val bookId = BookId("1")
     every { onboardingCompletedStore.data } returns flowOf(true)
     every { currentBookStore.data } returns flowOf(bookId)
@@ -66,7 +67,7 @@ class StartDestinationProviderTest {
   }
 
   @Test
-  fun `shows onboarding if not completed and no folders`() {
+  fun `shows onboarding if not completed and no folders`() = runTest {
     every { onboardingCompletedStore.data } returns flowOf(false)
     coEvery { audiobookFolders.hasAnyFolders() } returns false
 

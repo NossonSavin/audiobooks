@@ -35,6 +35,11 @@ internal class SeekableContentDataSource(
   private var currentChannelPosition: Long = 0L
 
   override fun open(dataSpec: DataSpec): Long {
+    if (opened) {
+      close()
+    }
+    readBufferStart = -1L
+    readBufferEnd = -1L
     try {
       uri = dataSpec.uri
       transferInitializing(dataSpec)
@@ -70,13 +75,7 @@ internal class SeekableContentDataSource(
         )
       }
 
-      if (targetOffset in readBufferStart until readBufferEnd) {
-        // Position is within cached buffer
-      } else {
-        readBufferStart = -1L
-        readBufferEnd = -1L
-        fileChannel.position(targetOffset)
-      }
+      fileChannel.position(targetOffset)
 
       bytesRemaining = if (dataSpec.length != C.LENGTH_UNSET.toLong()) {
         dataSpec.length

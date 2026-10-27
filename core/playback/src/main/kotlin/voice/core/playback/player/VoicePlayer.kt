@@ -11,7 +11,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import voice.core.analytics.api.Analytics
 import voice.core.data.BookContent
 import voice.core.data.BookId
@@ -25,6 +24,7 @@ import voice.core.playback.misc.Decibel
 import voice.core.playback.misc.VolumeGain
 import voice.core.playback.session.MediaId
 import voice.core.playback.session.MediaItemProvider
+import voice.core.playback.session.bookId
 import voice.core.playback.session.playbackItemForPosition
 import voice.core.playback.session.playbackItems
 import androidx.media3.common.MediaMetadata
@@ -60,10 +60,12 @@ class VoicePlayer(
   private val analytics: Analytics,
 ) : ForwardingPlayer(player) {
 
+  @Volatile
+  private var hideCoverFromSystem: Boolean = false
+
   override fun getMediaMetadata(): MediaMetadata {
     val metadata = super.getMediaMetadata()
-    val hide = runBlocking { hideCoverFromSystemStore.data.first() }
-    return if (hide) {
+    return if (hideCoverFromSystem) {
       metadata.buildUpon()
         .setArtworkUri(null)
         .setArtworkData(null, null)
@@ -75,8 +77,7 @@ class VoicePlayer(
 
   override fun getPlaylistMetadata(): MediaMetadata {
     val metadata = super.getPlaylistMetadata()
-    val hide = runBlocking { hideCoverFromSystemStore.data.first() }
-    return if (hide) {
+    return if (hideCoverFromSystem) {
       metadata.buildUpon()
         .setArtworkUri(null)
         .setArtworkData(null, null)
@@ -332,38 +333,42 @@ class VoicePlayer(
     setBook(first)
   }
 
+  private var setBookJob: Job? = null
   private var currentLoadedBookId: voice.core.data.BookId? = null
 
   private fun setBook(mediaItem: MediaItem) {
     Logger.v("setBook(${mediaItem.mediaId})")
     val mediaId = mediaItem.mediaId.toMediaIdOrNull()
     if (mediaId != null) {
-      if (mediaId is MediaId.Book) {
-        if (currentLoadedBookId == mediaId.id && player.playbackState != Player.STATE_IDLE) {
-          Logger.d("Book ${mediaId.id} is already loaded or preparing, skipping duplicate setBook")
+      val bookId = (mediaId as? MediaId.Book)?.id ?: mediaId.bookId
+      if (bookId != null) {
+        if (currentLoadedBookId == bookId && (setBookJob?.isActive == true || player.playbackState != Player.STATE_IDLE)) {
+          Logger.d("Book $bookId is already loaded or preparing, skipping duplicate setBook")
           return
         }
-        currentLoadedBookId = mediaId.id
-        val book = runBlocking {
-          repo.get(mediaId.id)
-        }
-        if (book != null) {
-          val defaultPlaybackSpeed = runBlocking { defaultPlaybackSpeedStore.data.first() }
-          val speed = book.content.effectivePlaybackSpeed(defaultPlaybackSpeed)
-          setSkipSilenceEnabled(book.content.skipSilence)
-          volumeGain.gain = Decibel(book.content.gain)
-          val currentPlaybackItem = book.playbackItemForPosition(
-            chapterId = book.content.currentChapter,
-            positionInChapterMs = book.content.positionInChapter,
-          ) ?: book.playbackItems().firstOrNull() ?: return
-          val mediaItems = runBlocking { mediaItemProvider.playbackItems(book) }
-          player.setMediaItems(
-            mediaItems,
-            currentPlaybackItem.index,
-            currentPlaybackItem.positionInMediaItem(book.content.positionInChapter),
-          )
-          setPlaybackSpeed(speed)
-          player.prepare()
+        currentLoadedBookId = bookId
+        setBookJob?.cancel()
+        setBookJob = scope.launch {
+          val book = repo.get(bookId)
+          if (book != null) {
+            hideCoverFromSystem = hideCoverFromSystemStore.data.first()
+            val defaultPlaybackSpeed = defaultPlaybackSpeedStore.data.first()
+            val speed = book.content.effectivePlaybackSpeed(defaultPlaybackSpeed)
+            setSkipSilenceEnabled(book.content.skipSilence)
+            volumeGain.gain = Decibel(book.content.gain)
+            val currentPlaybackItem = book.playbackItemForPosition(
+              chapterId = book.content.currentChapter,
+              positionInChapterMs = book.content.positionInChapter,
+            ) ?: book.playbackItems().firstOrNull() ?: return@launch
+            val mediaItems = mediaItemProvider.playbackItems(book)
+            player.setMediaItems(
+              mediaItems,
+              currentPlaybackItem.index,
+              currentPlaybackItem.positionInMediaItem(book.content.positionInChapter),
+            )
+            setPlaybackSpeed(speed)
+            player.prepare()
+          }
         }
       } else {
         Logger.w("Unexpected mediaId=$mediaId")

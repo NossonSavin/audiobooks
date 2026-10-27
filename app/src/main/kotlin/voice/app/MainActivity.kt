@@ -14,6 +14,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
 import androidx.core.net.toUri
@@ -76,8 +77,12 @@ class MainActivity : AppCompatActivity() {
     enableEdgeToEdge()
 
     setContent {
+      val initialDestinations = produceState<List<Destination.Compose>?>(initialValue = null, intent) {
+        value = startDestinationProvider(intent)
+      }.value ?: return@setContent
+
       @Suppress("UNCHECKED_CAST")
-      val backStack = rememberNavBackStack(*startDestinationProvider(intent).toTypedArray()) as MutableList<Destination.Compose>
+      val backStack = rememberNavBackStack(*initialDestinations.toTypedArray()) as MutableList<Destination.Compose>
       LaunchedEffect(backStack.last()) {
         analytics.screenView(backStack.last().trackingName)
       }

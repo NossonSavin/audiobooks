@@ -4,7 +4,6 @@ import android.content.Intent
 import androidx.datastore.core.DataStore
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import voice.app.MainActivity
 import voice.core.data.BookId
 import voice.core.data.folders.AudiobookFolders
@@ -26,31 +25,31 @@ class StartDestinationProvider(
   private val playerController: PlayerController,
 ) {
 
-  operator fun invoke(intent: Intent): List<Destination.Compose> {
-    val showOnboarding = runBlocking { showOnboarding() }
+  suspend operator fun invoke(intent: Intent): List<Destination.Compose> {
+    val showOnboarding = showOnboarding()
     if (showOnboarding) {
       return listOf(Destination.AddContent(origin = Origin.Onboarding))
     }
 
     val goToBook = intent.getBooleanExtra(MainActivity.Companion.NI_GO_TO_BOOK, false)
     if (goToBook) {
-      val bookId = runBlocking { currentBookStore.data.first() }
+      val bookId = currentBookStore.data.first()
       if (bookId != null) {
         return listOf(Destination.BookOverview, Destination.Playback(bookId))
       }
     }
 
     if (intent.action == "playCurrent") {
-      val bookId = runBlocking { currentBookStore.data.first() }
+      val bookId = currentBookStore.data.first()
       if (bookId != null) {
         playerController.playPause()
         return listOf(Destination.BookOverview, Destination.Playback(bookId))
       }
     }
 
-    val lastBookId = runBlocking { currentBookStore.data.first() }
+    val lastBookId = currentBookStore.data.first()
     if (lastBookId != null) {
-      val bookExists = runBlocking { bookRepository.get(lastBookId) != null }
+      val bookExists = bookRepository.get(lastBookId) != null
       if (bookExists) {
         return listOf(Destination.BookOverview, Destination.Playback(lastBookId))
       }
